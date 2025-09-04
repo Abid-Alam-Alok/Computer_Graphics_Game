@@ -14,8 +14,14 @@ bullets_direction_x = []
 bullets_direction_y = []
 bullets_angle = []
 camera_pos = (0,500,500)
+camera_offset = (0, 500, 500)  # Camera offset relative to player
 player_x = 0
 player_y = 0
+player_z = 0  # Player height for jumping
+is_jumping = False  # Jump state
+jump_velocity = 0  # Current jump velocity
+jump_speed = 15  # Initial jump speed
+gravity = 0.8  # Gravity force
 enemy_list = []
 player_cam_angle = 0
 mouse_left = False  # Track left mouse button state
@@ -29,6 +35,7 @@ enem_growing = True  # Flag for enemy size animation
 player_hit_count = 0  # Track how many times enemy touched the player
 count = 0
 first_person = False
+camera_mode = 0  # 0: top view, 1: third person, 2: first person
 cheat_mode = False  # If true, enemies won't move towards player
 val = 0
 cam_spinner = False
@@ -42,6 +49,7 @@ GRID_LENGTH = 3000  # Length of grid lines (increased from 600)
 rand_var = 423
 angle_hacks = math.radians(3)
 angle_inc = math.radians(5)
+move_speed = 10  # Player movement speed
 
 # Cloud variables
 cloud_positions = []
@@ -136,6 +144,24 @@ def update_player_death_animation():
    
     if game_over and death_rotation < 90:
         death_rotation += 90
+
+
+def update_player_jump():
+    """Update player jumping physics with gravity"""
+    global player_z, is_jumping, jump_velocity, gravity
+    
+    if is_jumping:
+        # Update player height based on velocity
+        player_z += jump_velocity
+        
+        # Apply gravity to velocity
+        jump_velocity -= gravity
+        
+        # Check if player has landed
+        if player_z <= 0:
+            player_z = 0
+            is_jumping = False
+            jump_velocity = 0
    
 
 
@@ -2029,7 +2055,7 @@ def draw_clouds():
 
 def draw_shapes():
     """Draw all game shapes including enemies and player"""
-    global player_x, player_y, player_cam_angle, enem_rad_top, enem_rad_bottom, enem_growing, game_over
+    global player_x, player_y, player_z, player_cam_angle, enem_rad_top, enem_rad_bottom, enem_growing, game_over
 
     # Only maintain 5 enemies if not game over
     if not game_over:
@@ -2273,7 +2299,7 @@ def draw_shapes():
 
     glPushMatrix()
     # Move and rotate the entire player
-    glTranslatef(player_x, player_y, 0)  # Base position at ground
+    glTranslatef(player_x, player_y, player_z)  # Base position with jump height
     glRotatef(player_cam_angle, 0, 0, 1)
    
     # Apply death rotation if game over
@@ -2283,29 +2309,43 @@ def draw_shapes():
     # --- BODY ---
     glPushMatrix()
     glTranslatef(0, 0, 60)  # body center above ground
-    glColor3f(1, 0, 1)
+    glColor3f(0.2, 0.6, 1.0)  # Nice blue color for body
     draw_scaled_cuboid(50, 20, 60)
     glPopMatrix()
 
     # --- LEFT LEG ---
     glPushMatrix()
     glTranslatef(-15, 0, 0)  # relative to body
-    glColor3f(0, 1, 0)
+    glColor3f(0.4, 0.2, 0.8)  # Purple color for legs
     gluCylinder(gluNewQuadric(), 5, 10, 40, 20, 20)
     glPopMatrix()
 
     # --- RIGHT LEG ---
     glPushMatrix()
     glTranslatef(15, 0, 0)
-    glColor3f(0, 1, 0)
+    glColor3f(0.4, 0.2, 0.8)  # Purple color for legs
     gluCylinder(gluNewQuadric(), 5, 10, 40, 20, 20)
+    glPopMatrix()
+
+    # --- LEFT SHOE ---
+    glPushMatrix()
+    glTranslatef(-15, 0, -5)  # At the bottom of left leg
+    glColor3f(0.1, 0.1, 0.1)  # Black shoes
+    draw_scaled_cuboid(15, 25, 8)
+    glPopMatrix()
+
+    # --- RIGHT SHOE ---
+    glPushMatrix()
+    glTranslatef(15, 0, -5)  # At the bottom of right leg
+    glColor3f(0.1, 0.1, 0.1)  # Black shoes
+    draw_scaled_cuboid(15, 25, 8)
     glPopMatrix()
 
     # --- LEFT ARM ---
     glPushMatrix()
     glTranslatef(-15, 0, 75)
     glRotatef(-90, 1, 0, 0)
-    glColor3f(0, 1, 0)
+    glColor3f(1.0, 0.8, 0.6)  # Skin color for arms
     gluCylinder(gluNewQuadric(), 7, 5, 35, 20, 20)
     glPopMatrix()
 
@@ -2313,7 +2353,7 @@ def draw_shapes():
     glPushMatrix()
     glTranslatef(15, 0, 75)
     glRotatef(-90, 1, 0, 0)
-    glColor3f(0, 1, 0)
+    glColor3f(1.0, 0.8, 0.6)  # Skin color for arms
     gluCylinder(gluNewQuadric(), 7, 5, 35, 20, 20)
 
     glTranslatef(-15, 0, 0)  # Move to gun position
@@ -2324,8 +2364,19 @@ def draw_shapes():
     # --- HEAD OR SPHERE ---
     glPushMatrix()
     glTranslatef(0, 0, 100)  # top of body
-    glColor3f(1, 1, 1)
+    glColor3f(1.0, 0.8, 0.6)  # Skin color for head
     gluSphere(gluNewQuadric(), 15, 10, 10)
+    glPopMatrix()
+
+    # --- HAT ---
+    glPushMatrix()
+    glTranslatef(0, 0, 115)  # On top of head
+    glColor3f(0.8, 0.1, 0.1)  # Red hat
+    gluCylinder(gluNewQuadric(), 18, 12, 15, 20, 20)  # Hat cylinder
+    # Hat brim
+    glTranslatef(0, 0, -2)
+    glColor3f(0.6, 0.05, 0.05)  # Darker red for brim
+    gluCylinder(gluNewQuadric(), 22, 22, 3, 20, 20)
     glPopMatrix()
 
     glPopMatrix()  # End player transformations
@@ -2341,9 +2392,9 @@ def draw_shapes():
 
 def keyboardListener(key, x, y):
     """Handle keyboard input"""
-    global player_x, player_y, player_cam_angle, game_over, score, enemy_list, bullets_x, bullets_y, bullets_z
+    global player_x, player_y, player_z, player_cam_angle, game_over, score, enemy_list, bullets_x, bullets_y, bullets_z
     global bullets_direction_x, bullets_direction_y, bullets_angle, missed, cheat_mode, cam_spinner, first_person
-    global player_lives, player_hit_count, death_rotation
+    global player_lives, player_hit_count, death_rotation, is_jumping, jump_velocity, jump_speed, move_speed
    
     # Don't allow movement if game over
     if game_over and key != b'r':
@@ -2353,8 +2404,6 @@ def keyboardListener(key, x, y):
         player_cam_angle += 360
     if player_cam_angle >= 360:
         player_cam_angle = 0
-
-    move_speed = 10
 
     if key == b'w':  # Move forward
         player_cam_angle_rad = math.radians(player_cam_angle)
@@ -2419,6 +2468,26 @@ def keyboardListener(key, x, y):
         cam_spinner = not cam_spinner
         print(f"Camera Spinner {'ON' if cam_spinner else 'OFF'}")
     
+    # Space bar for jumping
+    if key == b' ':
+        if not is_jumping and player_z <= 0:  # Can only jump when on ground
+            is_jumping = True
+            jump_velocity = jump_speed
+            print("Player jumped!")
+    
+    # Speed control
+    if key == b'q':  # Increase speed
+        move_speed += 2
+        if move_speed > 30:  # Maximum speed limit
+            move_speed = 30
+        print(f"Speed increased to: {move_speed}")
+    
+    if key == b'e':  # Decrease speed
+        move_speed -= 2
+        if move_speed < 2:  # Minimum speed limit
+            move_speed = 2
+        print(f"Speed decreased to: {move_speed}")
+    
     # F11 for fullscreen toggle (using 'f' key since F11 might not be available)
     if key == b'f':
         glutFullScreen()
@@ -2427,23 +2496,21 @@ def keyboardListener(key, x, y):
 
 def specialKeyListener(key, x, y):
     """
-    Rotate camera around the origin (0,0,0) with LEFT/RIGHT arrow keys.
+    Rotate camera around the player with LEFT/RIGHT arrow keys at fixed radius.
     UP/DOWN moves camera height.
     """
-    global camera_pos,angle_inc
+    global camera_offset,angle_inc
    
     # Don't allow camera movement if game over
     if game_over:
         return
        
-    cam_x, cam_y, cam_z = camera_pos
+    offset_x, offset_y, offset_z = camera_offset
 
 
-    # Compute current angle in X-Y plane
-    y = cam_y
-    x = cam_x
-    angle = math.atan2(y, x)
-    radius = math.sqrt(x**2 + y**2)
+    # Compute current angle and radius from offset
+    angle = math.atan2(offset_y, offset_x)
+    radius = math.sqrt(offset_x**2 + offset_y**2)
 
 
     # Angle increment for rotation
@@ -2451,28 +2518,30 @@ def specialKeyListener(key, x, y):
 
 
     if key == GLUT_KEY_LEFT:
-        # Rotate counter-clockwise around origin
+        # Rotate counter-clockwise around player
         angle += angle_inc
     elif key == GLUT_KEY_RIGHT:
-        # Rotate clockwise around origin
+        # Rotate clockwise around player
         angle -= angle_inc
     elif key == GLUT_KEY_UP:
-        # Move camera up
-        cam_z += 10
+        # Move camera up with height limit
+        if offset_z < 1000:  # Maximum height limit
+            offset_z += 10
     elif key == GLUT_KEY_DOWN:
-        # Move camera down
-        cam_z -= 10
+        # Move camera down with ground limit
+        if offset_z > 50:  # Minimum height above ground
+            offset_z -= 10
 
 
-    # Update camera position using polar coordinates
-    cam_x = radius * math.cos(angle)
-    cam_y = radius * math.sin(angle)
-    camera_pos = (cam_x, cam_y, cam_z)
+    # Update camera offset using polar coordinates
+    offset_x = radius * math.cos(angle)
+    offset_y = radius * math.sin(angle)
+    camera_offset = (offset_x, offset_y, offset_z)
 
 
 def mouseListener(button, state, x, y):
     global mouse_left, bullets_x, bullets_y, bullets_z, bullets_direction_x, bullets_direction_y, bullets_angle
-    global player_x, player_y, player_cam_angle, first_person, cam_spinner, game_over
+    global player_x, player_y, player_cam_angle, first_person, cam_spinner, game_over, camera_mode
    
     # Don't allow shooting if game over
     if game_over and button == GLUT_LEFT_BUTTON:
@@ -2498,16 +2567,23 @@ def mouseListener(button, state, x, y):
         bullets_angle.append(player_cam_angle)
    
     if button == GLUT_RIGHT_BUTTON and state == GLUT_UP:
-        # Allow first-person toggle in both normal and cheat mode
-        first_person = not first_person
-        if first_person:
-            print("First-Person Mode: ON")
-        else:
-            print("First-Person Mode: OFF")
-            # Reset camera spinner when leaving first-person
-            if cam_spinner:
-                cam_spinner = False
-                print("Camera Spinner OFF")
+        # Cycle through camera modes: 0 (top view) -> 1 (third person) -> 2 (first person) -> 0
+        camera_mode = (camera_mode + 1) % 3
+        
+        if camera_mode == 0:
+            first_person = False
+            print("Camera Mode: Top View")
+        elif camera_mode == 1:
+            first_person = False
+            print("Camera Mode: Third Person")
+        elif camera_mode == 2:
+            first_person = True
+            print("Camera Mode: First Person")
+        
+        # Reset camera spinner when leaving first-person
+        if not first_person and cam_spinner:
+            cam_spinner = False
+            print("Camera Spinner OFF")
 
 
 def update_bullet():
@@ -2638,7 +2714,7 @@ def setupCamera():
     This version is intentionally verbose with redundant steps
     for clarity and padding purposes.
     """
-    global player_x, player_y, player_cam_angle, first_person, cheat_mode, cam_spinner, camera_pos, fovY
+    global player_x, player_y, player_z, player_cam_angle, first_person, cheat_mode, cam_spinner, camera_pos, camera_offset, fovY, camera_mode
 
 
     # ------------------ Projection Setup ------------------
@@ -2680,12 +2756,12 @@ def setupCamera():
 
 
     # ------------------ Camera Positioning ------------------
-    if first_person:
-        # Determine camera height
+    if camera_mode == 2:  # First Person Mode
+        # Determine camera height (including jump height)
         if cheat_mode:
-            cam_z = 110  # Higher camera in cheat mode
+            cam_z = 110 + player_z  # Higher camera in cheat mode + jump height
         else:
-            cam_z = 90   # Normal first-person height
+            cam_z = 90 + player_z   # Normal first-person height + jump height
 
 
         # Assign player coordinates
@@ -2756,17 +2832,45 @@ def setupCamera():
         temp_look_x = None
         temp_look_y = None
         temp_look_z = None
-    else:
-        # ------------------ Free Camera ------------------
-        x, y, z = camera_pos
+    elif camera_mode == 0:  # Top View Mode
+        # ------------------ Top View Camera Directly Above Player ------------------
+        # Position camera directly above the player
+        cam_x = player_x
+        cam_y = player_y
+        cam_z = 800  # High above the player for top view
+        
+        # Look straight down at the player
+        target_x = player_x
+        target_y = player_y
+        target_z = 0  # Ground level
+        
+        # Set camera orientation (Y-axis forward for top view)
+        up_x = 0
+        up_y = 1
+        up_z = 0
+        
+        # Set camera
+        gluLookAt(cam_x, cam_y, cam_z,
+                  target_x, target_y, target_z,
+                  up_x, up_y, up_z)
+    else:  # Third Person Mode (camera_mode == 1)
+        # ------------------ Slanted Third Person Camera Following Player with Arrow Key Control ------------------
+        # Get camera offset relative to player
+        offset_x, offset_y, offset_z = camera_offset
+        
+        # Calculate actual camera position by applying offset to player position
+        cam_x = player_x + offset_x
+        cam_y = player_y + offset_y
+        cam_z = offset_z  # Use arrow key controlled height
        
         # Redundant temporary variables
-        temp_x = x
-        temp_y = y
-        temp_z = z
+        temp_x = cam_x
+        temp_y = cam_y
+        temp_z = cam_z
        
-        target_x, target_y, target_z = 0, 0, 0
-        up_x, up_y, up_z = 0, 0, 1
+        # Look slightly ahead of the player position for slanted view, with higher target to show more of the top
+        target_x, target_y, target_z = player_x + 50, player_y + 50, 200
+        up_x, up_y, up_z = 0, 0, 1  # Z-axis up for slanted orientation
        
         # Set camera
         gluLookAt(temp_x, temp_y, temp_z,
@@ -2804,6 +2908,7 @@ def idle():
     
     glutPostRedisplay()
     update_bullet()
+    update_player_jump()  # Update jumping physics
     if not game_over:  # Only update enemies if not game over
         update_enemies()  # Update enemy animations and positions
         check_bullet_enemy_collisions()  # Check for collisions each frame
