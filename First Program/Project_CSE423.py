@@ -38,10 +38,14 @@ game_over = False  # Game over state
 death_rotation = 0  # Player rotation on X-axis for falling animation
 imp_val = 0
 fovY = 120  # Field of view
-GRID_LENGTH = 1000  # Length of grid lines (increased from 600)
+GRID_LENGTH = 3000  # Length of grid lines (increased from 600)
 rand_var = 423
 angle_hacks = math.radians(3)
 angle_inc = math.radians(5)
+
+# Cloud variables
+cloud_positions = []
+cloud_animation_timer = 0
 
 # House and door system variables
 door_open = False
@@ -49,8 +53,58 @@ door_timer = 0
 door_auto_close_time = 180  # frames (3 seconds at 60fps)
 house_x = -800  # House in bottom-left corner
 house_y = -800
-house_width = 250
-house_depth = 250
+house_width = 350
+house_depth = 350
+
+# Neighbor house door variables
+neighbor1_door_open = False
+neighbor1_door_timer = 0
+neighbor2_door_open = False
+neighbor2_door_timer = 0
+neighbor3_door_open = False
+neighbor3_door_timer = 0
+
+# Village neighbor houses variables
+# Neighbor 1: Top-left corner with chickens
+neighbor1_x = -800
+neighbor1_y = 800
+neighbor1_width = 400
+neighbor1_depth = 400
+
+# Neighbor 2: Top-right corner with cow and milk cans
+neighbor2_x = 800
+neighbor2_y = 800
+neighbor2_width = 400
+neighbor2_depth = 400
+
+# Neighbor 3: Bottom-right corner with apple trees
+neighbor3_x = 800
+neighbor3_y = -800
+neighbor3_width = 400
+neighbor3_depth = 400
+
+# Animation variables for village elements
+chicken_bob_angle = 0  # For chicken bobbing animation
+
+# Merchant NPCs variables
+merchant1_x = neighbor1_x  # Merchant in neighbor house 1
+merchant1_y = neighbor1_y
+merchant1_angle = 0
+merchant1_move_timer = 0
+merchant1_direction = 1
+
+merchant2_x = neighbor2_x  # Merchant in neighbor house 2
+merchant2_y = neighbor2_y
+merchant2_angle = 90
+merchant2_move_timer = 60
+merchant2_direction = 1
+
+merchant3_x = neighbor3_x  # Merchant in neighbor house 3
+merchant3_y = neighbor3_y
+merchant3_angle = 180
+merchant3_move_timer = 120
+merchant3_direction = 1
+cow_tail_angle = 0     # For cow tail swaying
 
 
 
@@ -169,15 +223,75 @@ def check_house_collision(x, y):
 
 
 def check_door_collision(x, y):
-    """Check if player is near the door"""
+    """Check if player is near the main house door"""
     global house_x, house_y, house_width, house_depth
     door_x = house_x + house_width/3  # Door position 
     door_y = house_y + house_depth/2  # Front wall
-    door_width = 60
+    door_width = 100
     
     # Check if player is within door area
     distance_to_door = math.sqrt((x - door_x)**2 + (y - door_y)**2)
-    return distance_to_door < 60  # Increased detection range
+    return distance_to_door < 100  # Larger door detection range
+
+
+def check_neighbor1_door_collision(x, y):
+    """Check if player is near neighbor1 house door"""
+    door_x = neighbor1_x + neighbor1_width/3  # Door position 
+    door_y = neighbor1_y + neighbor1_depth/2  # Front wall
+    
+    # Check if player is within door area
+    distance_to_door = math.sqrt((x - door_x)**2 + (y - door_y)**2)
+    return distance_to_door < 150  # Larger door for merchant house
+
+
+def check_neighbor2_door_collision(x, y):
+    """Check if player is near neighbor2 house door"""
+    door_x = neighbor2_x + neighbor2_width/3  # Door position 
+    door_y = neighbor2_y + neighbor2_depth/2  # Front wall
+    
+    # Check if player is within door area
+    distance_to_door = math.sqrt((x - door_x)**2 + (y - door_y)**2)
+    return distance_to_door < 150  # Larger door for merchant house
+
+
+def check_neighbor3_door_collision(x, y):
+    """Check if player is near neighbor3 house door"""
+    door_x = neighbor3_x + neighbor3_width/3  # Door position 
+    door_y = neighbor3_y + neighbor3_depth/2  # Front wall
+    
+    # Check if player is within door area
+    distance_to_door = math.sqrt((x - door_x)**2 + (y - door_y)**2)
+    return distance_to_door < 150  # Larger door for merchant house
+
+
+def check_neighbor1_collision(x, y):
+    """Check if position is inside neighbor1 house boundaries"""
+    house_left = neighbor1_x - (neighbor1_width/2 + 50)
+    house_right = neighbor1_x + (neighbor1_width/2 + 50)
+    house_front = neighbor1_y + (neighbor1_depth/2 + 50)
+    house_back = neighbor1_y - (neighbor1_depth/2 + 50)
+    
+    return (house_left < x < house_right) and (house_back < y < house_front)
+
+
+def check_neighbor2_collision(x, y):
+    """Check if position is inside neighbor2 house boundaries"""
+    house_left = neighbor2_x - (neighbor2_width/2 + 50)
+    house_right = neighbor2_x + (neighbor2_width/2 + 50)
+    house_front = neighbor2_y + (neighbor2_depth/2 + 50)
+    house_back = neighbor2_y - (neighbor2_depth/2 + 50)
+    
+    return (house_left < x < house_right) and (house_back < y < house_front)
+
+
+def check_neighbor3_collision(x, y):
+    """Check if position is inside neighbor3 house boundaries"""
+    house_left = neighbor3_x - (neighbor3_width/2 + 50)
+    house_right = neighbor3_x + (neighbor3_width/2 + 50)
+    house_front = neighbor3_y + (neighbor3_depth/2 + 50)
+    house_back = neighbor3_y - (neighbor3_depth/2 + 50)
+    
+    return (house_left < x < house_right) and (house_back < y < house_front)
 
 
 def check_cave_collision(x, y):
@@ -196,23 +310,67 @@ def check_cave_collision(x, y):
 
 
 def update_door_system():
-    """Update door open/close system"""
+    """Update door open/close system for all houses"""
     global door_open, door_timer
+    global neighbor1_door_open, neighbor1_door_timer
+    global neighbor2_door_open, neighbor2_door_timer
+    global neighbor3_door_open, neighbor3_door_timer
     
-    # Check if player is near door
+    # Main house door
     near_door = check_door_collision(player_x, player_y)
-    
     if near_door and not door_open:
         door_open = True
         door_timer = 0
-        print(f"Door opened! Player at ({player_x:.1f}, {player_y:.1f})")
+        print(f"Main house door opened! Player at ({player_x:.1f}, {player_y:.1f})")
     
     if door_open:
         door_timer += 1
         if door_timer > door_auto_close_time:
             door_open = False
             door_timer = 0
-            print("Door closed!")
+            print("Main house door closed!")
+    
+    # Neighbor1 house door
+    near_neighbor1_door = check_neighbor1_door_collision(player_x, player_y)
+    if near_neighbor1_door and not neighbor1_door_open:
+        neighbor1_door_open = True
+        neighbor1_door_timer = 0
+        print(f"Neighbor1 house door opened! Player at ({player_x:.1f}, {player_y:.1f})")
+    
+    if neighbor1_door_open:
+        neighbor1_door_timer += 1
+        if neighbor1_door_timer > door_auto_close_time:
+            neighbor1_door_open = False
+            neighbor1_door_timer = 0
+            print("Neighbor1 house door closed!")
+    
+    # Neighbor2 house door
+    near_neighbor2_door = check_neighbor2_door_collision(player_x, player_y)
+    if near_neighbor2_door and not neighbor2_door_open:
+        neighbor2_door_open = True
+        neighbor2_door_timer = 0
+        print(f"Neighbor2 house door opened! Player at ({player_x:.1f}, {player_y:.1f})")
+    
+    if neighbor2_door_open:
+        neighbor2_door_timer += 1
+        if neighbor2_door_timer > door_auto_close_time:
+            neighbor2_door_open = False
+            neighbor2_door_timer = 0
+            print("Neighbor2 house door closed!")
+    
+    # Neighbor3 house door
+    near_neighbor3_door = check_neighbor3_door_collision(player_x, player_y)
+    if near_neighbor3_door and not neighbor3_door_open:
+        neighbor3_door_open = True
+        neighbor3_door_timer = 0
+        print(f"Neighbor3 house door opened! Player at ({player_x:.1f}, {player_y:.1f})")
+    
+    if neighbor3_door_open:
+        neighbor3_door_timer += 1
+        if neighbor3_door_timer > door_auto_close_time:
+            neighbor3_door_open = False
+            neighbor3_door_timer = 0
+            print("Neighbor3 house door closed!")
 
 
 def open_door():
@@ -229,18 +387,63 @@ def can_move_to_position(new_x, new_y):
     if new_x <= -GRID_LENGTH or new_x >= GRID_LENGTH or new_y <= -GRID_LENGTH or new_y >= GRID_LENGTH:
         return False
     
-    # Check if trying to enter house
+    # Check if trying to enter main house
     if check_house_collision(new_x, new_y):
-        # Only allow entry through open door
+        # Only allow entry through open door when player is near door
         if door_open and check_door_collision(new_x, new_y):
             return True
         return False
     
-    # Check if leaving house - only through door
+    # Check if trying to enter neighbor1 house
+    if check_neighbor1_collision(new_x, new_y):
+        # Only allow entry through open door when player is near door
+        if neighbor1_door_open and check_neighbor1_door_collision(new_x, new_y):
+            return True
+        return False
+    
+    # Check if trying to enter neighbor2 house
+    if check_neighbor2_collision(new_x, new_y):
+        # Only allow entry through open door when player is near door
+        if neighbor2_door_open and check_neighbor2_door_collision(new_x, new_y):
+            return True
+        return False
+    
+    # Check if trying to enter neighbor3 house
+    if check_neighbor3_collision(new_x, new_y):
+        # Only allow entry through open door when player is near door
+        if neighbor3_door_open and check_neighbor3_door_collision(new_x, new_y):
+            return True
+        return False
+    
+    # Check if leaving main house - only through door
     current_in_house = check_house_collision(player_x, player_y)
     if current_in_house and not check_house_collision(new_x, new_y):
-        # Leaving house - must be through door
-        if door_open and check_door_collision(player_x, player_y):
+        # Leaving house - must be through door area
+        if door_open and check_door_collision(new_x, new_y):
+            return True
+        return False
+    
+    # Check if leaving neighbor1 house - only through door
+    current_in_neighbor1 = check_neighbor1_collision(player_x, player_y)
+    if current_in_neighbor1 and not check_neighbor1_collision(new_x, new_y):
+        # Leaving house - must be through door area
+        if neighbor1_door_open and check_neighbor1_door_collision(new_x, new_y):
+            return True
+        return False
+    
+    # Check if leaving neighbor2 house - only through door
+    current_in_neighbor2 = check_neighbor2_collision(player_x, player_y)
+    if current_in_neighbor2 and not check_neighbor2_collision(new_x, new_y):
+        # Leaving house - must be through door area
+        if neighbor2_door_open and check_neighbor2_door_collision(new_x, new_y):
+            return True
+        return False
+    
+    # Check if leaving neighbor3 house - only through door
+    current_in_neighbor3 = check_neighbor3_collision(player_x, player_y)
+    if current_in_neighbor3 and not check_neighbor3_collision(new_x, new_y):
+        # Leaving house - must be through door area
+        if neighbor3_door_open and check_neighbor3_door_collision(new_x, new_y):
             return True
         return False
     
@@ -442,8 +645,13 @@ def make_new_enemy():
         far_player = distance_to_player > 100
         not_in_house = not check_house_collision(enemy_x, enemy_y)
         not_in_cave = not check_cave_collision(enemy_x, enemy_y)
+        
+        # Check if enemy is not in any house (main house or neighbor houses)
+        not_in_neighbor1 = not check_neighbor1_collision(enemy_x, enemy_y)
+        not_in_neighbor2 = not check_neighbor2_collision(enemy_x, enemy_y)
+        not_in_neighbor3 = not check_neighbor3_collision(enemy_x, enemy_y)
        
-        if far_player and not_in_house and not_in_cave:
+        if far_player and not_in_house and not_in_cave and not_in_neighbor1 and not_in_neighbor2 and not_in_neighbor3:
             # Z-coordinate (always 0 for now)
             enemy_z = 0
            
@@ -490,11 +698,765 @@ def draw_scaled_cuboid(length=200, width=100, height=80):
     glPopMatrix()
 
 
+def draw_chicken(x, y, z):
+    """Draw a chicken with white sphere body, red cone beak, and cylindrical legs"""
+    global chicken_bob_angle
+    
+    glPushMatrix()
+    glTranslatef(x, y, z)
+    
+    # Add bobbing animation
+    bob_offset = math.sin(math.radians(chicken_bob_angle)) * 3
+    glTranslatef(0, 0, bob_offset)
+    
+    # Chicken body (white sphere)
+    glPushMatrix()
+    glTranslatef(0, 0, 15)  # Lift body above ground
+    glColor3f(1.0, 1.0, 1.0)  # White color
+    gluSphere(gluNewQuadric(), 12, 16, 16)
+    glPopMatrix()
+    
+    # Chicken head (smaller white sphere)
+    glPushMatrix()
+    glTranslatef(0, 8, 22)  # Position head in front and above body
+    glColor3f(1.0, 1.0, 1.0)  # White color
+    gluSphere(gluNewQuadric(), 6, 12, 12)
+    glPopMatrix()
+    
+    # Chicken beak (red cone)
+    glPushMatrix()
+    glTranslatef(0, 12, 22)  # Position beak in front of head
+    glRotatef(90, 1, 0, 0)  # Point cone forward
+    glColor3f(1.0, 0.2, 0.2)  # Red color
+    glutSolidCone(2, 4, 8, 8)
+    glPopMatrix()
+    
+    # Left leg (cylindrical)
+    glPushMatrix()
+    glTranslatef(-4, 0, 0)  # Position left leg
+    glColor3f(1.0, 0.8, 0.0)  # Yellow/orange color
+    gluCylinder(gluNewQuadric(), 1.5, 1.5, 8, 8, 8)
+    glPopMatrix()
+    
+    # Right leg (cylindrical)
+    glPushMatrix()
+    glTranslatef(4, 0, 0)  # Position right leg
+    glColor3f(1.0, 0.8, 0.0)  # Yellow/orange color
+    gluCylinder(gluNewQuadric(), 1.5, 1.5, 8, 8, 8)
+    glPopMatrix()
+    
+    # Left foot (small flat cylinder)
+    glPushMatrix()
+    glTranslatef(-4, 2, 0)
+    glColor3f(1.0, 0.8, 0.0)  # Yellow/orange color
+    gluCylinder(gluNewQuadric(), 3, 3, 1, 8, 8)
+    glPopMatrix()
+    
+    # Right foot (small flat cylinder)
+    glPushMatrix()
+    glTranslatef(4, 2, 0)
+    glColor3f(1.0, 0.8, 0.0)  # Yellow/orange color
+    gluCylinder(gluNewQuadric(), 3, 3, 1, 8, 8)
+    glPopMatrix()
+    
+    glPopMatrix()
+
+
+def draw_chicken_coop(x, y, z):
+    """Draw a chicken coop with cylindrical fences and multiple chickens"""
+    glPushMatrix()
+    glTranslatef(x, y, z)
+    
+    # Coop dimensions
+    coop_width = 80
+    coop_depth = 80
+    fence_height = 25
+    fence_radius = 2
+    
+    # Draw fence posts around the perimeter
+    fence_posts = [
+        # Front fence
+        (-coop_width/2, coop_depth/2, 0),
+        (-coop_width/4, coop_depth/2, 0),
+        (0, coop_depth/2, 0),
+        (coop_width/4, coop_depth/2, 0),
+        (coop_width/2, coop_depth/2, 0),
+        # Back fence
+        (-coop_width/2, -coop_depth/2, 0),
+        (-coop_width/4, -coop_depth/2, 0),
+        (0, -coop_depth/2, 0),
+        (coop_width/4, -coop_depth/2, 0),
+        (coop_width/2, -coop_depth/2, 0),
+        # Left fence
+        (-coop_width/2, -coop_depth/4, 0),
+        (-coop_width/2, 0, 0),
+        (-coop_width/2, coop_depth/4, 0),
+        # Right fence
+        (coop_width/2, -coop_depth/4, 0),
+        (coop_width/2, 0, 0),
+        (coop_width/2, coop_depth/4, 0),
+    ]
+    
+    # Draw cylindrical fence posts
+    for post_x, post_y, post_z in fence_posts:
+        glPushMatrix()
+        glTranslatef(post_x, post_y, post_z)
+        glColor3f(0.6, 0.4, 0.2)  # Brown fence color
+        gluCylinder(gluNewQuadric(), fence_radius, fence_radius, fence_height, 8, 8)
+        glPopMatrix()
+    
+    # Draw horizontal fence rails
+    rail_positions = [8, 16]  # Two horizontal rails at different heights
+    for rail_height in rail_positions:
+        # Front and back rails
+        for side_y in [-coop_depth/2, coop_depth/2]:
+            glPushMatrix()
+            glTranslatef(0, side_y, rail_height)
+            glRotatef(90, 0, 1, 0)  # Rotate to horizontal
+            glColor3f(0.6, 0.4, 0.2)  # Brown fence color
+            gluCylinder(gluNewQuadric(), fence_radius*0.7, fence_radius*0.7, coop_width, 8, 8)
+            glPopMatrix()
+        
+        # Left and right rails
+        for side_x in [-coop_width/2, coop_width/2]:
+            glPushMatrix()
+            glTranslatef(side_x, 0, rail_height)
+            glRotatef(90, 1, 0, 0)  # Rotate to horizontal
+            glColor3f(0.6, 0.4, 0.2)  # Brown fence color
+            gluCylinder(gluNewQuadric(), fence_radius*0.7, fence_radius*0.7, coop_depth, 8, 8)
+            glPopMatrix()
+    
+    # Draw chickens inside the coop
+    chicken_positions = [
+        (-20, -20, 0),
+        (15, -15, 0),
+        (-10, 20, 0),
+        (25, 10, 0),
+        (0, 0, 0)
+    ]
+    
+    for chicken_x, chicken_y, chicken_z in chicken_positions:
+        draw_chicken(chicken_x, chicken_y, chicken_z)
+    
+    glPopMatrix()
+
+
+def draw_cow(x, y, z):
+    """Draw a cow with black and white spotted body"""
+    global cow_tail_angle
+    
+    glPushMatrix()
+    glTranslatef(x, y, z)
+    
+    # Cow body (main white body)
+    glPushMatrix()
+    glTranslatef(0, 0, 25)  # Lift body above ground
+    glColor3f(1.0, 1.0, 1.0)  # White base color
+    glScalef(40, 20, 15)  # Elongated body
+    glutSolidCube(1)
+    glPopMatrix()
+    
+    # Black spots on body
+    spot_positions = [
+        (-8, 0, 28, 4),   # Left side spot
+        (10, 0, 30, 5),   # Right side spot
+        (-5, 0, 22, 3),   # Lower left spot
+        (8, 0, 24, 4),    # Lower right spot
+        (0, 0, 32, 3),    # Top center spot
+    ]
+    
+    for spot_x, spot_y, spot_z, spot_size in spot_positions:
+        glPushMatrix()
+        glTranslatef(spot_x, spot_y, spot_z)
+        glColor3f(0.0, 0.0, 0.0)  # Black spots
+        gluSphere(gluNewQuadric(), spot_size, 8, 8)
+        glPopMatrix()
+    
+    # Cow head (white)
+    glPushMatrix()
+    glTranslatef(0, 15, 30)  # Position head in front
+    glColor3f(1.0, 1.0, 1.0)  # White color
+    glScalef(12, 8, 10)
+    glutSolidCube(1)
+    glPopMatrix()
+    
+    # Cow snout (pink)
+    glPushMatrix()
+    glTranslatef(0, 19, 28)
+    glColor3f(1.0, 0.7, 0.7)  # Pink snout
+    glScalef(8, 4, 6)
+    glutSolidCube(1)
+    glPopMatrix()
+    
+    # Cow ears (black)
+    glPushMatrix()
+    glTranslatef(-6, 15, 35)
+    glColor3f(0.0, 0.0, 0.0)  # Black ears
+    glScalef(3, 2, 6)
+    glutSolidCube(1)
+    glPopMatrix()
+    
+    glPushMatrix()
+    glTranslatef(6, 15, 35)
+    glColor3f(0.0, 0.0, 0.0)  # Black ears
+    glScalef(3, 2, 6)
+    glutSolidCube(1)
+    glPopMatrix()
+    
+    # Cow horns (white)
+    glPushMatrix()
+    glTranslatef(-3, 15, 38)
+    glColor3f(0.9, 0.9, 0.8)  # Off-white horns
+    glutSolidCone(1, 6, 6, 6)
+    glPopMatrix()
+    
+    glPushMatrix()
+    glTranslatef(3, 15, 38)
+    glColor3f(0.9, 0.9, 0.8)  # Off-white horns
+    glutSolidCone(1, 6, 6, 6)
+    glPopMatrix()
+    
+    # Cow legs (white with black hooves)
+    leg_positions = [
+        (-12, 6, 0),   # Front left
+        (12, 6, 0),    # Front right
+        (-12, -6, 0),  # Back left
+        (12, -6, 0),   # Back right
+    ]
+    
+    for leg_x, leg_y, leg_z in leg_positions:
+        # White leg
+        glPushMatrix()
+        glTranslatef(leg_x, leg_y, leg_z)
+        glColor3f(1.0, 1.0, 1.0)  # White leg
+        gluCylinder(gluNewQuadric(), 3, 3, 15, 8, 8)
+        glPopMatrix()
+        
+        # Black hoof
+        glPushMatrix()
+        glTranslatef(leg_x, leg_y, 0)
+        glColor3f(0.0, 0.0, 0.0)  # Black hoof
+        gluCylinder(gluNewQuadric(), 4, 4, 2, 8, 8)
+        glPopMatrix()
+    
+    # Cow tail (animated)
+    tail_sway = math.sin(math.radians(cow_tail_angle)) * 15
+    glPushMatrix()
+    glTranslatef(-20, 0, 20)
+    glRotatef(tail_sway, 0, 0, 1)  # Sway tail
+    glColor3f(0.0, 0.0, 0.0)  # Black tail
+    gluCylinder(gluNewQuadric(), 1.5, 0.5, 12, 6, 6)
+    glPopMatrix()
+    
+    # Udder (pink)
+    glPushMatrix()
+    glTranslatef(0, -5, 15)
+    glColor3f(1.0, 0.7, 0.7)  # Pink udder
+    gluSphere(gluNewQuadric(), 6, 8, 8)
+    glPopMatrix()
+    
+    glPopMatrix()
+
+
+def draw_milk_cans(x, y, z):
+    """Draw milk cans for the cow neighbor's offering"""
+    glPushMatrix()
+    glTranslatef(x, y, z)
+    
+    # Draw multiple milk cans in a group
+    can_positions = [
+        (-15, 0, 0),
+        (0, 0, 0),
+        (15, 0, 0),
+        (-7, 15, 0),
+        (7, 15, 0)
+    ]
+    
+    for can_x, can_y, can_z in can_positions:
+        glPushMatrix()
+        glTranslatef(can_x, can_y, can_z)
+        
+        # Milk can body (silver/metallic)
+        glColor3f(0.8, 0.8, 0.9)  # Silver color
+        gluCylinder(gluNewQuadric(), 6, 6, 20, 12, 12)
+        
+        # Milk can lid (darker silver)
+        glPushMatrix()
+        glTranslatef(0, 0, 20)
+        glColor3f(0.6, 0.6, 0.7)  # Darker silver
+        gluCylinder(gluNewQuadric(), 7, 7, 2, 12, 12)
+        glPopMatrix()
+        
+        # Handle on the side
+        glPushMatrix()
+        glTranslatef(8, 0, 15)
+        glRotatef(90, 0, 1, 0)
+        glColor3f(0.5, 0.5, 0.6)  # Dark handle
+        glutSolidTorus(1, 3, 8, 12)
+        glPopMatrix()
+        
+        glPopMatrix()
+    
+    glPopMatrix()
+
+
+def draw_apple_tree(x, y, z):
+    """Draw an apple tree with red apples on branches"""
+    glPushMatrix()
+    glTranslatef(x, y, z)
+    
+    # Tree trunk
+    trunk_height = 120
+    trunk_radius = 8
+    glColor3f(0.55, 0.27, 0.07)  # Brown trunk
+    gluCylinder(gluNewQuadric(), trunk_radius, trunk_radius * 0.8, trunk_height, 16, 16)
+    
+    # Main foliage (green sphere)
+    glPushMatrix()
+    glTranslatef(0, 0, trunk_height + 30)
+    glColor3f(0.2, 0.7, 0.2)  # Green foliage
+    gluSphere(gluNewQuadric(), 40, 16, 16)
+    glPopMatrix()
+    
+    # Additional foliage clusters for fuller tree
+    foliage_positions = [
+        (-20, 20, trunk_height + 20, 25),
+        (25, -15, trunk_height + 25, 28),
+        (-15, -25, trunk_height + 30, 22),
+        (20, 25, trunk_height + 35, 26),
+        (0, 0, trunk_height + 50, 20)
+    ]
+    
+    for foliage_x, foliage_y, foliage_z, foliage_size in foliage_positions:
+        glPushMatrix()
+        glTranslatef(foliage_x, foliage_y, foliage_z)
+        glColor3f(0.1, 0.6, 0.1)  # Slightly darker green
+        gluSphere(gluNewQuadric(), foliage_size, 12, 12)
+        glPopMatrix()
+    
+    # Draw apples scattered throughout the tree - more apples added
+    apple_positions = [
+        # Lower apples (easier to see)
+        (-25, 15, trunk_height + 10, 3),
+        (20, -10, trunk_height + 15, 3),
+        (-10, -20, trunk_height + 20, 3),
+        (15, 20, trunk_height + 25, 3),
+        (-30, -5, trunk_height + 18, 3),
+        (25, 25, trunk_height + 22, 3),
+        (-35, 25, trunk_height + 12, 3),
+        (35, -15, trunk_height + 16, 3),
+        (-5, -35, trunk_height + 14, 3),
+        (30, 5, trunk_height + 19, 3),
+        # Middle apples
+        (-15, 25, trunk_height + 35, 3),
+        (30, -20, trunk_height + 30, 3),
+        (-20, -30, trunk_height + 40, 3),
+        (10, 15, trunk_height + 45, 3),
+        (0, -25, trunk_height + 38, 3),
+        (-25, 0, trunk_height + 42, 3),
+        (-35, -15, trunk_height + 32, 3),
+        (35, 10, trunk_height + 36, 3),
+        (-12, 35, trunk_height + 41, 3),
+        (18, -35, trunk_height + 33, 3),
+        (-28, -28, trunk_height + 39, 3),
+        (32, 32, trunk_height + 37, 3),
+        # Higher apples
+        (-10, 10, trunk_height + 55, 3),
+        (15, -15, trunk_height + 60, 3),
+        (0, 20, trunk_height + 65, 3),
+        (-20, -10, trunk_height + 58, 3),
+        (-25, 30, trunk_height + 52, 3),
+        (28, -25, trunk_height + 56, 3),
+        (-8, -30, trunk_height + 62, 3),
+        (22, 18, trunk_height + 59, 3),
+        (-32, -8, trunk_height + 54, 3),
+        (12, 35, trunk_height + 61, 3),
+        # Top apples
+        (-5, 5, trunk_height + 70, 3),
+        (8, -8, trunk_height + 72, 3),
+        (-12, 15, trunk_height + 68, 3),
+        (18, -5, trunk_height + 74, 3)
+    ]
+    
+    for apple_x, apple_y, apple_z, apple_size in apple_positions:
+        glPushMatrix()
+        glTranslatef(apple_x, apple_y, apple_z)
+        glColor3f(0.9, 0.1, 0.1)  # Red apple
+        gluSphere(gluNewQuadric(), apple_size, 8, 8)
+        
+        # Apple stem (small brown cylinder)
+        glPushMatrix()
+        glTranslatef(0, 0, apple_size)
+        glColor3f(0.4, 0.2, 0.1)  # Brown stem
+        gluCylinder(gluNewQuadric(), 0.5, 0.5, 2, 4, 4)
+        glPopMatrix()
+        
+        glPopMatrix()
+    
+    glPopMatrix()
+
+
+def draw_apple_basket(x, y, z):
+    """Draw a basket filled with apples"""
+    glPushMatrix()
+    glTranslatef(x, y, z)
+    
+    # Basket base (brown woven look)
+    basket_radius = 12
+    basket_height = 8
+    
+    # Draw basket bottom
+    glPushMatrix()
+    glColor3f(0.6, 0.4, 0.2)  # Brown basket color
+    gluCylinder(gluNewQuadric(), basket_radius, basket_radius * 0.9, basket_height, 16, 16)
+    glPopMatrix()
+    
+    # Draw basket rim
+    glPushMatrix()
+    glTranslatef(0, 0, basket_height)
+    glColor3f(0.5, 0.3, 0.1)  # Darker brown rim
+    glutSolidTorus(1, basket_radius, 8, 16)
+    glPopMatrix()
+    
+    # Draw basket handle
+    glPushMatrix()
+    glTranslatef(0, 0, basket_height + 5)
+    glRotatef(90, 1, 0, 0)
+    glColor3f(0.5, 0.3, 0.1)  # Brown handle
+    glutSolidTorus(1.5, 8, 8, 12)
+    glPopMatrix()
+    
+    # Draw apples in the basket
+    apple_in_basket_positions = [
+        # Bottom layer
+        (-6, -6, basket_height + 2, 2.5),
+        (6, -6, basket_height + 2, 2.5),
+        (-6, 6, basket_height + 2, 2.5),
+        (6, 6, basket_height + 2, 2.5),
+        (0, 0, basket_height + 2, 2.5),
+        # Middle layer
+        (-3, -3, basket_height + 6, 2.5),
+        (3, -3, basket_height + 6, 2.5),
+        (-3, 3, basket_height + 6, 2.5),
+        (3, 3, basket_height + 6, 2.5),
+        # Top layer
+        (0, -2, basket_height + 10, 2.5),
+        (0, 2, basket_height + 10, 2.5),
+        # Extra apples for fullness
+        (-8, 0, basket_height + 3, 2.5),
+        (8, 0, basket_height + 3, 2.5),
+        (0, -8, basket_height + 3, 2.5),
+        (0, 8, basket_height + 3, 2.5)
+    ]
+    
+    for apple_x, apple_y, apple_z, apple_size in apple_in_basket_positions:
+        glPushMatrix()
+        glTranslatef(apple_x, apple_y, apple_z)
+        
+        # Vary apple colors slightly
+        if (apple_x + apple_y) % 3 == 0:
+            glColor3f(0.9, 0.1, 0.1)  # Bright red
+        elif (apple_x + apple_y) % 3 == 1:
+            glColor3f(0.8, 0.3, 0.1)  # Red-orange
+        else:
+            glColor3f(0.7, 0.1, 0.1)  # Dark red
+            
+        gluSphere(gluNewQuadric(), apple_size, 8, 8)
+        
+        # Small apple stem
+        glPushMatrix()
+        glTranslatef(0, 0, apple_size)
+        glColor3f(0.4, 0.2, 0.1)  # Brown stem
+        gluCylinder(gluNewQuadric(), 0.3, 0.3, 1, 4, 4)
+        glPopMatrix()
+        
+        glPopMatrix()
+    
+    glPopMatrix()
+
+
+def draw_neighbor_house(x, y, z, house_color=(0.8, 0.7, 0.5)):
+    """Draw a neighbor house with courtyard"""
+    glPushMatrix()
+    glTranslatef(x, y, z)
+    
+    # House dimensions
+    house_width = 300
+    house_depth = 300
+    house_height = 160
+    wall_thickness = 15
+    
+    # Draw house foundation/floor
+    glPushMatrix()
+    glTranslatef(0, 0, 5)
+    glColor3f(0.5, 0.5, 0.5)  # Gray foundation
+    glScalef(house_width, house_depth, 10)
+    glutSolidCube(1)
+    glPopMatrix()
+    
+    # Draw house walls
+    # Front wall
+    glPushMatrix()
+    glTranslatef(0, house_depth/2 - wall_thickness/2, house_height/2)
+    glColor3f(house_color[0], house_color[1], house_color[2])  # Custom house color
+    glScalef(house_width, wall_thickness, house_height)
+    glutSolidCube(1)
+    glPopMatrix()
+    
+    # Back wall
+    glPushMatrix()
+    glTranslatef(0, -house_depth/2 + wall_thickness/2, house_height/2)
+    glColor3f(house_color[0], house_color[1], house_color[2])
+    glScalef(house_width, wall_thickness, house_height)
+    glutSolidCube(1)
+    glPopMatrix()
+    
+    # Left wall
+    glPushMatrix()
+    glTranslatef(-house_width/2 + wall_thickness/2, 0, house_height/2)
+    glColor3f(house_color[0], house_color[1], house_color[2])
+    glScalef(wall_thickness, house_depth, house_height)
+    glutSolidCube(1)
+    glPopMatrix()
+    
+    # Right wall
+    glPushMatrix()
+    glTranslatef(house_width/2 - wall_thickness/2, 0, house_height/2)
+    glColor3f(house_color[0], house_color[1], house_color[2])
+    glScalef(wall_thickness, house_depth, house_height)
+    glutSolidCube(1)
+    glPopMatrix()
+    
+    # Draw roof (triangular)
+    glBegin(GL_TRIANGLES)
+    glColor3f(0.6, 0.2, 0.2)  # Red roof
+    
+    # Front triangle
+    glVertex3f(-house_width/2, house_depth/2, house_height)
+    glVertex3f(house_width/2, house_depth/2, house_height)
+    glVertex3f(0, house_depth/2, house_height + 40)
+    
+    # Back triangle
+    glVertex3f(-house_width/2, -house_depth/2, house_height)
+    glVertex3f(house_width/2, -house_depth/2, house_height)
+    glVertex3f(0, -house_depth/2, house_height + 40)
+    
+    glEnd()
+    
+    # Roof sides
+    glBegin(GL_QUADS)
+    glColor3f(0.5, 0.15, 0.15)  # Darker red for sides
+    
+    # Left roof side
+    glVertex3f(-house_width/2, -house_depth/2, house_height)
+    glVertex3f(-house_width/2, house_depth/2, house_height)
+    glVertex3f(0, house_depth/2, house_height + 40)
+    glVertex3f(0, -house_depth/2, house_height + 40)
+    
+    # Right roof side
+    glVertex3f(house_width/2, -house_depth/2, house_height)
+    glVertex3f(house_width/2, house_depth/2, house_height)
+    glVertex3f(0, house_depth/2, house_height + 40)
+    glVertex3f(0, -house_depth/2, house_height + 40)
+    
+    glEnd()
+    
+    # Draw door
+    glPushMatrix()
+    glTranslatef(house_width/3, house_depth/2 - wall_thickness/2, 30)
+    glColor3f(0.4, 0.2, 0.1)  # Brown door
+    glScalef(25, wall_thickness + 2, 60)
+    glutSolidCube(1)
+    glPopMatrix()
+    
+    # Draw windows
+    window_positions = [
+        (-house_width/3, house_depth/2 - wall_thickness/2, 50),  # Front left window
+        (house_width/3, -house_depth/2 + wall_thickness/2, 50),  # Back right window
+        (-house_width/2 + wall_thickness/2, house_depth/4, 50),  # Left side window
+        (house_width/2 - wall_thickness/2, -house_depth/4, 50),  # Right side window
+    ]
+    
+    for win_x, win_y, win_z in window_positions:
+        glPushMatrix()
+        glTranslatef(win_x, win_y, win_z)
+        glColor3f(0.7, 0.9, 1.0)  # Light blue window
+        glScalef(20, wall_thickness + 1, 20)
+        glutSolidCube(1)
+        glPopMatrix()
+    
+    # Draw courtyard fence around the house
+    courtyard_size = 280
+    fence_height = 20
+    fence_posts = []
+    
+    # Generate fence posts around courtyard perimeter
+    for i in range(20):  # Front fence
+        post_x = -courtyard_size/2 + (i * courtyard_size/19)
+        fence_posts.append((post_x, courtyard_size/2, 0))
+    
+    for i in range(20):  # Back fence
+        post_x = -courtyard_size/2 + (i * courtyard_size/19)
+        fence_posts.append((post_x, -courtyard_size/2, 0))
+    
+    for i in range(1, 19):  # Left fence (skip corners)
+        post_y = -courtyard_size/2 + (i * courtyard_size/19)
+        fence_posts.append((-courtyard_size/2, post_y, 0))
+    
+    for i in range(1, 19):  # Right fence (skip corners)
+        post_y = -courtyard_size/2 + (i * courtyard_size/19)
+        fence_posts.append((courtyard_size/2, post_y, 0))
+    
+    # Draw fence posts
+    for post_x, post_y, post_z in fence_posts:
+        glPushMatrix()
+        glTranslatef(post_x, post_y, post_z)
+        glColor3f(0.6, 0.4, 0.2)  # Brown fence
+        gluCylinder(gluNewQuadric(), 2, 2, fence_height, 6, 6)
+        glPopMatrix()
+    
+    glPopMatrix()
+
+
 def draw_text(x, y, text):
     """Simple text rendering without glutBitmapCharacter to avoid font errors"""
     # For now, just print to console instead of rendering on screen
     # This prevents the font errors while maintaining functionality
     pass
+
+
+def update_merchants():
+    """Update merchant movement inside houses"""
+    global merchant1_x, merchant1_y, merchant1_move_timer, merchant1_direction
+    global merchant2_x, merchant2_y, merchant2_move_timer, merchant2_direction
+    global merchant3_x, merchant3_y, merchant3_move_timer, merchant3_direction
+    
+    move_range = 80  # How far merchants move inside house
+    move_speed = 0.5
+    
+    # Update merchant 1 (horizontal movement)
+    merchant1_move_timer += 1
+    if merchant1_move_timer % 120 == 0:  # Change direction every 2 seconds
+        merchant1_direction *= -1
+    merchant1_x = neighbor1_x + merchant1_direction * move_range * math.sin(merchant1_move_timer * 0.02)
+    
+    # Update merchant 2 (vertical movement)
+    merchant2_move_timer += 1
+    if merchant2_move_timer % 150 == 0:  # Change direction every 2.5 seconds
+        merchant2_direction *= -1
+    merchant2_y = neighbor2_y + merchant2_direction * move_range * math.sin(merchant2_move_timer * 0.015)
+    
+    # Update merchant 3 (diagonal movement)
+    merchant3_move_timer += 1
+    if merchant3_move_timer % 180 == 0:  # Change direction every 3 seconds
+        merchant3_direction *= -1
+    merchant3_x = neighbor3_x + merchant3_direction * move_range * 0.7 * math.sin(merchant3_move_timer * 0.01)
+    merchant3_y = neighbor3_y + merchant3_direction * move_range * 0.7 * math.cos(merchant3_move_timer * 0.01)
+
+
+def draw_merchant(merchant_x, merchant_y, merchant_angle):
+    """Draw a merchant NPC similar to the player character"""
+    glPushMatrix()
+    # Move and rotate the entire merchant
+    glTranslatef(merchant_x, merchant_y, 0)  # Base position at ground
+    glRotatef(merchant_angle, 0, 0, 1)
+    
+    # --- BODY ---
+    glPushMatrix()
+    glTranslatef(0, 0, 60)  # body center above ground
+    glColor3f(0, 0, 1)  # Blue body to distinguish from player
+    draw_scaled_cuboid(50, 20, 60)
+    glPopMatrix()
+    
+    # --- LEFT LEG ---
+    glPushMatrix()
+    glTranslatef(-15, 0, 0)  # relative to body
+    glColor3f(0.5, 0.3, 0.1)  # Brown legs
+    gluCylinder(gluNewQuadric(), 5, 10, 40, 20, 20)
+    glPopMatrix()
+    
+    # --- RIGHT LEG ---
+    glPushMatrix()
+    glTranslatef(15, 0, 0)
+    glColor3f(0.5, 0.3, 0.1)  # Brown legs
+    gluCylinder(gluNewQuadric(), 5, 10, 40, 20, 20)
+    glPopMatrix()
+    
+    # --- LEFT ARM ---
+    glPushMatrix()
+    glTranslatef(-15, 0, 75)
+    glRotatef(-90, 1, 0, 0)
+    glColor3f(0.8, 0.6, 0.4)  # Skin color
+    gluCylinder(gluNewQuadric(), 7, 5, 35, 20, 20)
+    glPopMatrix()
+    
+    # --- RIGHT ARM ---
+    glPushMatrix()
+    glTranslatef(15, 0, 75)
+    glRotatef(-90, 1, 0, 0)
+    glColor3f(0.8, 0.6, 0.4)  # Skin color
+    gluCylinder(gluNewQuadric(), 7, 5, 35, 20, 20)
+    
+    # Add basket to merchant3's hand (apple merchant)
+    if abs(merchant_x - neighbor3_x) < 200 and abs(merchant_y - neighbor3_y) < 200:  # Check if this is merchant3
+        glPushMatrix()
+        glTranslatef(0, -40, 0)  # Position basket at end of arm
+        glRotatef(90, 1, 0, 0)  # Rotate basket to hang properly
+        
+        # Basket base (brown woven look)
+        basket_radius = 8
+        basket_height = 6
+        
+        # Draw basket bottom
+        glColor3f(0.6, 0.4, 0.2)  # Brown basket color
+        gluCylinder(gluNewQuadric(), basket_radius, basket_radius * 0.9, basket_height, 16, 16)
+        
+        # Draw basket rim
+        glPushMatrix()
+        glTranslatef(0, 0, basket_height)
+        glColor3f(0.5, 0.3, 0.1)  # Darker brown rim
+        glutSolidTorus(0.8, basket_radius, 8, 16)
+        glPopMatrix()
+        
+        # Draw basket handle (connected to hand)
+        glPushMatrix()
+        glTranslatef(0, 0, basket_height + 3)
+        glRotatef(90, 1, 0, 0)
+        glColor3f(0.5, 0.3, 0.1)  # Brown handle
+        glutSolidTorus(1, 6, 8, 12)
+        glPopMatrix()
+        
+        # Draw apples in the basket
+        apple_positions = [
+            (-4, -4, basket_height + 1, 2),
+            (4, -4, basket_height + 1, 2),
+            (-4, 4, basket_height + 1, 2),
+            (4, 4, basket_height + 1, 2),
+            (0, 0, basket_height + 1, 2),
+            (-2, -2, basket_height + 4, 2),
+            (2, -2, basket_height + 4, 2),
+            (0, 2, basket_height + 4, 2)
+        ]
+        
+        for apple_x, apple_y, apple_z, apple_size in apple_positions:
+            glPushMatrix()
+            glTranslatef(apple_x, apple_y, apple_z)
+            glColor3f(0.9, 0.1, 0.1)  # Red apple
+            gluSphere(gluNewQuadric(), apple_size, 8, 8)
+            glPopMatrix()
+        
+        glPopMatrix()
+    
+    glPopMatrix()
+    
+    # --- HEAD ---
+    glPushMatrix()
+    glTranslatef(0, 0, 100)  # top of body
+    glColor3f(0.9, 0.7, 0.5)  # Skin color for head
+    gluSphere(gluNewQuadric(), 15, 10, 10)
+    glPopMatrix()
+    
+    glPopMatrix()  # End merchant transformations
 
 
 def update_enemies():
@@ -539,9 +1501,12 @@ def update_enemies():
             new_x = enemy_x + direction_x * enemy_speed
             new_y = enemy_y + direction_y * enemy_speed
 
-            # Prevent enemies from entering house/cave and stay within bounds
+            # Prevent enemies from entering ANY house, cave, or merchant houses - stay within bounds
+            # Enemies are NEVER allowed in ANY house, regardless of door state
             if (-GRID_LENGTH < new_x < GRID_LENGTH and -GRID_LENGTH < new_y < GRID_LENGTH 
-                and not check_house_collision(new_x, new_y) and not check_cave_collision(new_x, new_y)):
+                and not check_house_collision(new_x, new_y) and not check_cave_collision(new_x, new_y)
+                and not check_neighbor1_collision(new_x, new_y) and not check_neighbor2_collision(new_x, new_y)
+                and not check_neighbor3_collision(new_x, new_y)):
                 enemy_x = new_x
                 enemy_y = new_y
 
@@ -705,9 +1670,9 @@ def draw_house(x, y, z):
     glTranslatef(x, y, z)
     
     # House dimensions
-    house_width = 250
-    house_depth = 250
-    house_height = 150
+    house_width = 350
+    house_depth = 350
+    house_height = 200
     wall_thickness = 20
     
     # Draw house foundation/floor
@@ -1030,6 +1995,38 @@ def draw_cave(x, y, z):
     glPopMatrix()
 
 
+def initialize_clouds():
+    global cloud_positions
+    cloud_positions = []
+    for _ in range(20):
+        x = random.uniform(-2000, 2000)
+        y = random.uniform(-2000, 2000)
+        z = random.uniform(500, 700)
+        color = random.choice([(0.9, 0.9, 1.0), (0.8, 0.8, 1.0), (1.0, 1.0, 1.0)])
+        
+        spheres = []
+        for _ in range(6):
+            x_offset = (random.random() - 0.5) * 100
+            y_offset = (random.random() - 0.5) * 100
+            z_offset = (random.random() - 0.5) * 20
+            radius = 30 + random.random() * 20
+            spheres.append({'offset': [x_offset, y_offset, z_offset], 'radius': radius})
+
+        cloud_positions.append({'pos': [x, y, z], 'color': color, 'spheres': spheres})
+
+def draw_clouds():
+    for cloud in cloud_positions:
+        glPushMatrix()
+        glTranslatef(cloud['pos'][0], cloud['pos'][1], cloud['pos'][2])
+        glColor3f(cloud['color'][0], cloud['color'][1], cloud['color'][2])
+        for sphere in cloud['spheres']:
+            glPushMatrix()
+            glTranslatef(sphere['offset'][0], sphere['offset'][1], sphere['offset'][2])
+            glutSolidSphere(sphere['radius'], 20, 20)
+            glPopMatrix()
+        glPopMatrix()
+
+
 def draw_shapes():
     """Draw all game shapes including enemies and player"""
     global player_x, player_y, player_cam_angle, enem_rad_top, enem_rad_bottom, enem_growing, game_over
@@ -1040,17 +2037,48 @@ def draw_shapes():
             make_new_enemy()
 
     # Rearrange world objects according to user's drawing
-    # Trees positioned around the map
+    # Trees positioned around the expanded map (3000x3000 grid) - removed trees inside enlarged houses
     tree_positions = [
-        (-800, 800, 0),     # Top-left corner (near cave)
-        (-300, 900, 0),     # Top area
-        (300, 900, 0),      # Top area  
-        (-900, 300, 0),     # Left side
-        (-900, -300, 0),    # Left side
-        (-300, -900, 0),    # Bottom area
-        (300, -900, 0),     # Bottom area
-        (900, -300, 0),     # Right side (away from cave)
-        (200, 200, 0),      # Central area
+        (-1200, 1200, 0),   # Far top-left
+        (-300, 1300, 0),    # Top area
+        (300, 1400, 0),     # Top area  
+        (-1400, 800, 0),    # Far left side
+        (-1200, 300, 0),    # Left side
+        (-1100, -300, 0),   # Left side
+        (-1300, -800, 0),   # Far left bottom
+        (-300, -1200, 0),   # Bottom area
+        (300, -1300, 0),    # Bottom area
+        (1400, -800, 0),    # Far right bottom
+        (1200, -300, 0),    # Right side
+        (1300, 300, 0),     # Right side
+        (1400, 800, 0),     # Far right side
+        (-1200, -300, 0),   # Left side (moved away from houses)
+        (1200, 300, 0),     # Right side (moved away from houses)
+        (-1100, 600, 0),    # Left-top area (moved away from neighbor1)
+        (1100, 600, 0),     # Right-top area (moved away from neighbor2)
+        (-1100, -1100, 0),  # Left-bottom area (moved away from main house)
+        (1100, -1100, 0),   # Right-bottom area (moved away from neighbor3)
+        # Additional trees
+        (-1500, 1500, 0),   # Far corners
+        (1500, 1500, 0),
+        (-1500, -1500, 0),
+        (1500, -1500, 0),
+        (-800, 1500, 0),    # More top area
+        (0, 1500, 0),
+        (800, 1500, 0),
+        (-1500, 0, 0),      # More side areas
+        (1500, 0, 0),
+        (-800, -1500, 0),   # More bottom area
+        (0, -1500, 0),
+        (800, -1500, 0),
+        (-600, 900, 0),     # Fill in gaps
+        (600, 900, 0),
+        (-900, 600, 0),
+        (900, 600, 0),
+        (-600, -900, 0),
+        (600, -900, 0),
+        (-900, -600, 0),
+        (900, -600, 0),
     ]
 
     for tree_x, tree_y, tree_z in tree_positions:
@@ -1060,7 +2088,7 @@ def draw_shapes():
 
         trunk_length = 200
         trunk_radius = 10
-        leaf_radius = 30  # Increased base leaf size
+        leaf_radius = 35  # Smaller base leaf size
 
         # Draw trunk (solid cylinder)
         glColor3f(0.55, 0.27, 0.07)  # Brown
@@ -1069,9 +2097,9 @@ def draw_shapes():
         gluCylinder(quadric, trunk_radius, trunk_radius * 0.6, trunk_length, 24, 24)
         gluDeleteQuadric(quadric)
 
-        # Draw multiple layers of branches for a fuller tree
-        branch_levels = 5  # Number of vertical levels
-        branch_count = 20 # Base number of branches
+        # Draw fewer layers of branches for simpler trees
+        branch_levels = 3  # Reduced number of vertical levels
+        branch_count = 8  # Reduced base number of branches
         for level in range(branch_levels):
             level_height = trunk_length * (0.5 + level * 0.2)  # Different heights for each level
             branches_per_level = branch_count - level * 2  # Fewer branches at higher levels
@@ -1100,8 +2128,8 @@ def draw_shapes():
                 # Draw multiple leaf clusters at end of branch for more spread
                 glTranslatef(0, 0, level_branch_length)
                 
-                # Create 3-5 leaf clusters per branch tip for fuller appearance
-                num_leaf_clusters = 3 + (i % 3)  # 3-5 clusters per branch
+                # Create 2-3 leaf clusters per branch tip for simpler appearance
+                num_leaf_clusters = 2 + (i % 2)  # 2-3 clusters per branch
                 for cluster in range(num_leaf_clusters):
                     glPushMatrix()
                     
@@ -1117,10 +2145,10 @@ def draw_shapes():
                     glTranslatef(cluster_x, cluster_y, cluster_z)
                     
                     # Vary leaf size and color based on branch level and position
-                    size_variation = 0.8 + (cluster % 4) * 0.4  # Size varies from 0.8 to 2.0
-                    current_leaf_radius = leaf_radius * size_variation * (1.3 - level * 0.15)
+                    size_variation = 0.6 + (cluster % 3) * 0.3  # Size varies from 0.6 to 1.2
+                    current_leaf_radius = leaf_radius * size_variation * (1.2 - level * 0.1)
                     
-                    # Different shades of green
+                    # Different shades of green with more variety
                     green_variations = [
                         (0.0, 0.8, 0.2),   # Bright green
                         (0.1, 0.7, 0.1),   # Medium green  
@@ -1128,7 +2156,18 @@ def draw_shapes():
                         (0.2, 0.9, 0.2),   # Light green
                         (0.0, 0.5, 0.2),   # Dark green
                         (0.3, 0.8, 0.3),   # Light forest green
-                        (0.0, 0.9, 0.4)    # Spring green
+                        (0.0, 0.9, 0.4),   # Spring green
+                        (0.1, 0.9, 0.3),   # Lime green
+                        (0.0, 0.7, 0.4),   # Sea green
+                        (0.2, 0.6, 0.1),   # Olive green
+                        (0.0, 0.8, 0.5),   # Emerald green
+                        (0.3, 0.9, 0.4),   # Mint green
+                        (0.1, 0.5, 0.3),   # Pine green
+                        (0.0, 0.9, 0.1),   # Neon green
+                        (0.2, 0.7, 0.2),   # Grass green
+                        (0.1, 0.6, 0.4),   # Sage green
+                        (0.0, 0.4, 0.2),   # Deep forest green
+                        (0.4, 0.8, 0.2)    # Yellow-green
                     ]
                     green_color = green_variations[(i + cluster) % len(green_variations)]
                     glColor3f(green_color[0], green_color[1], green_color[2])
@@ -1152,7 +2191,29 @@ def draw_shapes():
             top_z = trunk_length + leaf_radius * (0.2 + top_cluster * 0.1)
             
             glTranslatef(top_x, top_y, top_z)
-            glColor3f(0.1, 0.9, 0.1)  # Bright green for top
+            # Use varied green shades for top clusters too
+            green_variations = [
+                (0.0, 0.8, 0.2),   # Bright green
+                (0.1, 0.7, 0.1),   # Medium green  
+                (0.0, 0.6, 0.3),   # Forest green
+                (0.2, 0.9, 0.2),   # Light green
+                (0.0, 0.5, 0.2),   # Dark green
+                (0.3, 0.8, 0.3),   # Light forest green
+                (0.0, 0.9, 0.4),   # Spring green
+                (0.1, 0.9, 0.3),   # Lime green
+                (0.0, 0.7, 0.4),   # Sea green
+                (0.2, 0.6, 0.1),   # Olive green
+                (0.0, 0.8, 0.5),   # Emerald green
+                (0.3, 0.9, 0.4),   # Mint green
+                (0.1, 0.5, 0.3),   # Pine green
+                (0.0, 0.9, 0.1),   # Neon green
+                (0.2, 0.7, 0.2),   # Grass green
+                (0.1, 0.6, 0.4),   # Sage green
+                (0.0, 0.4, 0.2),   # Deep forest green
+                (0.4, 0.8, 0.2)    # Yellow-green
+            ]
+            top_green_color = green_variations[(i + top_cluster) % len(green_variations)]
+            glColor3f(*top_green_color)
             top_leaf_quad = gluNewQuadric()
             gluQuadricDrawStyle(top_leaf_quad, GLU_FILL)
             gluSphere(top_leaf_quad, leaf_radius * (1.2 + top_cluster * 0.2), 24, 24)
@@ -1170,6 +2231,26 @@ def draw_shapes():
     cave_x = 800   # Top-right corner
     cave_y = 800
     draw_cave(cave_x, cave_y, 0)
+    
+    # Draw neighbor houses with their features
+    # Neighbor 1 (top-left): Chicken coop
+    draw_neighbor_house(neighbor1_x, neighbor1_y, 0, (0.9, 0.8, 0.6))  # Light yellow house
+    draw_merchant(merchant1_x, merchant1_y, merchant1_angle)  # Merchant inside house 1
+    draw_chicken_coop(neighbor1_x - 50, neighbor1_y - 50, 0)
+    
+    # Neighbor 2 (top-right): Cow and milk cans
+    draw_neighbor_house(neighbor2_x, neighbor2_y, 0, (0.8, 0.9, 0.7))  # Light green house
+    draw_merchant(merchant2_x, merchant2_y, merchant2_angle)  # Merchant inside house 2
+    draw_cow(neighbor2_x - 30, neighbor2_y - 30, 0)
+    draw_milk_cans(neighbor2_x + 40, neighbor2_y - 60, 0)
+    
+    # Neighbor 3 (bottom-right): Apple trees and basket
+    draw_neighbor_house(neighbor3_x, neighbor3_y, 0, (0.9, 0.7, 0.8))  # Light pink house
+    draw_merchant(merchant3_x, merchant3_y, merchant3_angle)  # Merchant inside house 3 (now carrying basket)
+    # Move apple trees outside the house boundaries
+    draw_apple_tree(neighbor3_x - 300, neighbor3_y + 250, 0)  # Far left from house
+    draw_apple_tree(neighbor3_x + 250, neighbor3_y - 300, 0)  # Far right from house
+    draw_apple_tree(neighbor3_x + 300, neighbor3_y + 300, 0)  # Far top-right from house
 
     # Draw all enemies - only if not game over
     if not game_over:
@@ -1711,6 +2792,16 @@ def idle():
     Idle function that runs continuously:
     - Triggers screen redraw for real-time updates.
     """
+    global chicken_bob_angle, cow_tail_angle, cloud_animation_timer
+
+    cloud_animation_timer += 1
+    if cloud_animation_timer > 1:
+        for cloud in cloud_positions:
+            cloud['pos'][0] += 0.5  # Move clouds slowly to the right
+            if cloud['pos'][0] > 2000:
+                cloud['pos'][0] = -2000
+        cloud_animation_timer = 0
+    
     glutPostRedisplay()
     update_bullet()
     if not game_over:  # Only update enemies if not game over
@@ -1719,6 +2810,10 @@ def idle():
         cheat_mode_behavior()  # Handle cheat mode
     check_game_over()  # Check for game over conditions
     update_player_death_animation()  # Update death animation
+    
+    # Update village animations
+    chicken_bob_angle = (chicken_bob_angle + 3) % 360  # Chicken bobbing
+    cow_tail_angle = (cow_tail_angle + 2) % 360        # Cow tail swaying
 
 
 def reshape(width, height):
@@ -1746,6 +2841,8 @@ def showScreen():
     - Clears the screen and sets up the camera.
     - Draws everything of the screen
     """
+    # Set background to baby blue
+    glClearColor(0.53, 0.81, 0.92, 1.0)
     # Clear color and depth buffers
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     glEnable(GL_DEPTH_TEST)
@@ -1763,9 +2860,9 @@ def showScreen():
     # Draw the grid (game floor) - larger with green sand and green patches
     glBegin(GL_QUADS)
     square_len = 100
-    grid_size = 20  # Increased from 12 to make it larger
-    x_val = -1000
-    y_val = 1000
+    grid_size = 60  # Increased to cover the full 3000x3000 grid
+    x_val = -GRID_LENGTH
+    y_val = GRID_LENGTH
 
     for i in range(grid_size):          # rows
         for j in range(grid_size):      # cols
@@ -1787,7 +2884,7 @@ def showScreen():
             x_val += square_len
 
         # reset x and move down after row ends
-        x_val = -1000
+        x_val = -GRID_LENGTH
         y_val -= square_len
 
 
@@ -1799,32 +2896,32 @@ def showScreen():
     glBegin(GL_QUADS)
     glColor3f(0.0, 0.0, 0.0)  # Black wall color
 
-    # Top wall (along X, at y = 1000)
-    glVertex3f(-1000, 1000, 0)
-    glVertex3f(1000, 1000, 0)
-    glVertex3f(1000, 1000, wall_height)
-    glVertex3f(-1000, 1000, wall_height)
+    # Top wall (along X, at y = GRID_LENGTH)
+    glVertex3f(-GRID_LENGTH, GRID_LENGTH, 0)
+    glVertex3f(GRID_LENGTH, GRID_LENGTH, 0)
+    glVertex3f(GRID_LENGTH, GRID_LENGTH, wall_height)
+    glVertex3f(-GRID_LENGTH, GRID_LENGTH, wall_height)
    
     glColor3f(0.0, 0.0, 0.0)  # Black wall color
-    # Bottom wall (along X, at y = -1000)
-    glVertex3f(-1000, -1000, 0)
-    glVertex3f(1000, -1000, 0)
-    glVertex3f(1000, -1000, wall_height)
-    glVertex3f(-1000, -1000, wall_height)
+    # Bottom wall (along X, at y = -GRID_LENGTH)
+    glVertex3f(-GRID_LENGTH, -GRID_LENGTH, 0)
+    glVertex3f(GRID_LENGTH, -GRID_LENGTH, 0)
+    glVertex3f(GRID_LENGTH, -GRID_LENGTH, wall_height)
+    glVertex3f(-GRID_LENGTH, -GRID_LENGTH, wall_height)
    
     glColor3f(0.0, 0.0, 0.0)  # Black wall color
-    # Left wall (along Y, at x = -1000)
-    glVertex3f(-1000, -1000, 0)
-    glVertex3f(-1000, 1000, 0)
-    glVertex3f(-1000, 1000, wall_height)
-    glVertex3f(-1000, -1000, wall_height)
+    # Left wall (along Y, at x = -GRID_LENGTH)
+    glVertex3f(-GRID_LENGTH, -GRID_LENGTH, 0)
+    glVertex3f(-GRID_LENGTH, GRID_LENGTH, 0)
+    glVertex3f(-GRID_LENGTH, GRID_LENGTH, wall_height)
+    glVertex3f(-GRID_LENGTH, -GRID_LENGTH, wall_height)
 
     glColor3f(0.0, 0.0, 0.0)  # Black wall color
-    # Right wall (along Y, at x = 1000)
-    glVertex3f(1000, -1000, 0)
-    glVertex3f(1000, 1000, 0)
-    glVertex3f(1000, 1000, wall_height)
-    glVertex3f(1000, -1000, wall_height)
+    # Right wall (along Y, at x = GRID_LENGTH)
+    glVertex3f(GRID_LENGTH, -GRID_LENGTH, 0)
+    glVertex3f(GRID_LENGTH, GRID_LENGTH, 0)
+    glVertex3f(GRID_LENGTH, GRID_LENGTH, wall_height)
+    glVertex3f(GRID_LENGTH, -GRID_LENGTH, wall_height)
 
 
     glEnd()
@@ -1850,6 +2947,8 @@ def showScreen():
    
 
 
+    update_merchants()
+    draw_clouds()
     draw_shapes()
 
 
@@ -1859,6 +2958,7 @@ def showScreen():
 
 # Main function to set up OpenGL window and loop
 def main():
+    initialize_clouds()
     glutInit()
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH)  # Double buffering, RGB color, depth test
     glutInitWindowSize(1000, 800)  # Window size
