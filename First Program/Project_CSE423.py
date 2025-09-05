@@ -17,6 +17,9 @@ camera_pos = (0,500,500)
 camera_offset = (0, 500, 500)  # Camera offset relative to player
 player_x = 0
 player_y = 0
+
+# Sword-related variables
+sword_swing_counter = 0  # Counter to slow down sword rotation
 player_z = 0  # Player height for jumping
 is_jumping = False  # Jump state
 jump_velocity = 0  # Current jump velocity
@@ -42,8 +45,10 @@ cam_spinner = False
 static_first_person = False
 player_lives = 5
 game_over = False  # Game over state
+current_weapon = "gun"  # Start with the gun
 death_rotation = 0  # Player rotation on X-axis for falling animation
 imp_val = 0
+sword_rotation = 0
 fovY = 120  # Field of view
 GRID_LENGTH = 3000  # Length of grid lines (increased from 600)
 rand_var = 423
@@ -257,7 +262,7 @@ def check_door_collision(x, y):
     
     # Check if player is within door area
     distance_to_door = math.sqrt((x - door_x)**2 + (y - door_y)**2)
-    return distance_to_door < 100  # Larger door detection range
+    return distance_to_door < 120  # Larger door detection range
 
 
 def check_neighbor1_door_collision(x, y):
@@ -320,12 +325,12 @@ def check_neighbor3_collision(x, y):
     return (house_left < x < house_right) and (house_back < y < house_front)
 
 
-def check_cave_collision(x, y):
+def is_inside_cave(x, y):
     """Check if position is inside cave boundaries"""
-    cave_x = 800   # Cave in top-right corner (opposite to house)
-    cave_y = 800
-    cave_width = 400
-    cave_depth = 400
+    cave_x = -2500 
+    cave_y = -2500
+    cave_width = 1000
+    cave_depth = 1000
     
     cave_left = cave_x - cave_width/2
     cave_right = cave_x + cave_width/2
@@ -333,6 +338,72 @@ def check_cave_collision(x, y):
     cave_back = cave_y - cave_depth/2
     
     return (cave_left < x < cave_right) and (cave_back < y < cave_front)
+
+def check_cave_collision(x, y):
+    """Check if position collides with cave walls."""
+    cave_x = -2500 
+    cave_y = -2500
+    cave_width = 1000
+    cave_depth = 1000
+    wall_thickness = 40
+
+    # Back wall
+    if (x >= cave_x - cave_width/2 and x <= cave_x + cave_width/2 and
+        y >= cave_y - cave_depth/2 - wall_thickness/2 and y <= cave_y - cave_depth/2 + wall_thickness/2):
+        return True
+
+    # Left wall
+    if (x >= cave_x - cave_width/2 - wall_thickness/2 and x <= cave_x - cave_width/2 + wall_thickness/2 and
+        y >= cave_y - cave_depth/2 and y <= cave_y + cave_depth/2):
+        return True
+
+    # Right wall
+    if (x >= cave_x + cave_width/2 - wall_thickness/2 and x <= cave_x + cave_width/2 + wall_thickness/2 and
+        y >= cave_y - cave_depth/2 and y <= cave_y + cave_depth/2):
+        return True
+
+    return False
+    if (x >= cave_x - cave_width/2 - wall_thickness/2 and x <= cave_x - cave_width/2 + wall_thickness/2 and
+        y >= cave_y - cave_depth/2 and y <= cave_y + cave_depth/2):
+        return True
+
+    # Right wall
+    if (x >= cave_x + cave_width/2 - wall_thickness/2 and x <= cave_x + cave_width/2 + wall_thickness/2 and
+        y >= cave_y - cave_depth/2 and y <= cave_y + cave_depth/2):
+        return True
+
+    # Front wall (with opening)
+    opening_width = 200
+    opening_left_x = cave_x - opening_width/2
+    opening_right_x = cave_x + opening_width/2
+    
+    front_wall_y_min = cave_y + cave_depth/2 - wall_thickness/2
+    front_wall_y_max = cave_y + cave_depth/2 + wall_thickness/2
+
+    # Check if player is in the y-range of the front wall
+    if (y >= front_wall_y_min and y <= front_wall_y_max):
+        # Check if player is in the solid parts of the front wall
+        if (x >= cave_x - cave_width/2 and x <= opening_left_x) or \
+           (x >= opening_right_x and x <= cave_x + cave_width/2):
+            return True
+
+    return False
+
+def check_cave_opening_collision(x, y):
+    """Check if position is near the cave opening."""
+    cave_x = -2500
+    cave_y = -2500
+    cave_depth = 1000
+    opening_width = 200
+    wall_thickness = 40
+
+    opening_left_x = cave_x - opening_width / 2
+    opening_right_x = cave_x + opening_width / 2
+    opening_y = cave_y + cave_depth / 2
+
+    # A small area around the opening
+    return (opening_left_x - 20 < x < opening_right_x + 20 and
+            opening_y - wall_thickness < y < opening_y + wall_thickness)
 
 
 def update_door_system():
@@ -440,6 +511,15 @@ def can_move_to_position(new_x, new_y):
         if neighbor3_door_open and check_neighbor3_door_collision(new_x, new_y):
             return True
         return False
+
+    # Check cave collision
+    if check_cave_collision(new_x, new_y):
+        return False
+
+    # Check if leaving cave - only through opening
+    if is_inside_cave(player_x, player_y) and not is_inside_cave(new_x, new_y):
+        if not check_cave_opening_collision(player_x, player_y):
+            return False
     
     # Check if leaving main house - only through door
     current_in_house = check_house_collision(player_x, player_y)
@@ -480,6 +560,56 @@ def can_move_to_position(new_x, new_y):
 
 
 
+
+
+def check_sword_enemy_collisions():
+    """
+    Check for collisions between the sword and enemies.
+    Remove enemies that are hit by the sword.
+    Increase score for each hit.
+    """
+    global player_x, player_y, player_cam_angle, sword_rotation
+    global enemy_list, score, enem_rad_bottom
+    
+    # Calculate sword tip position based on player position and sword rotation
+    sword_length = 80  # Total length of sword (handle + blade)
+    player_cam_angle_rad = math.radians(player_cam_angle)
+    
+    # Calculate direction vector based on player angle
+    dir_x = -math.sin(player_cam_angle_rad)
+    dir_y = math.cos(player_cam_angle_rad)
+    
+    # Calculate perpendicular direction for sword extension
+    perp_x = -dir_y
+    perp_y = dir_x
+    
+    # Determine sword tip position based on rotation
+    if sword_rotation == 0:  # Right hand
+        sword_tip_x = player_x + (perp_x * sword_length)
+        sword_tip_y = player_y + (perp_y * sword_length)
+    else:  # Left hand
+        sword_tip_x = player_x - (perp_x * sword_length)
+        sword_tip_y = player_y - (perp_y * sword_length)
+    
+    # Sword collision radius (make it larger than the actual sword width for easier hits)
+    sword_radius = 20
+    
+    # Check each enemy for collision with the sword
+    remove_enemy_bag = []  # Indices of enemies to remove
+    
+    for enemy_num in range(len(enemy_list)):
+        enemy_x, enemy_y, enemy_z = enemy_list[enemy_num]
+        
+        if collision_detector(sword_tip_x, sword_tip_y, sword_radius, enemy_x, enemy_y, enem_rad_bottom):
+            if enemy_num not in remove_enemy_bag:
+                remove_enemy_bag.append(enemy_num)
+            score += 1
+            print(f"Sword Hit! Score: {score}")
+    
+    # Remove hit enemies (in reverse order to avoid index issues)
+    remove_enemy_bag.sort(reverse=True)
+    for enemy_idx in remove_enemy_bag:
+        enemy_list.pop(enemy_idx)
 
 
 def check_bullet_enemy_collisions():
@@ -1751,8 +1881,8 @@ def draw_house(x, y, z):
     glPopMatrix()
     
     # Door opening (cut from front wall)
-    door_width = 60
-    door_height = 120
+    door_width = 100
+    door_height = 150
     glPushMatrix()
     glTranslatef(house_width/3, house_depth/2 - wall_thickness/2, door_height/2)
     glColor3f(0.3, 0.2, 0.1)  # Dark brown door
@@ -1806,10 +1936,9 @@ def draw_cave(x, y, z):
     glTranslatef(x, y, z)
     
     # Cave dimensions - much larger
-    cave_width = 400
-    cave_depth = 400
-    cave_height = 200
-    wall_thickness = 30
+    cave_width = 1000
+    cave_depth = 1000
+    cave_height = 300
     
     # Draw cave floor - dark grey stone
     glPushMatrix()
@@ -1819,98 +1948,65 @@ def draw_cave(x, y, z):
     glutSolidCube(1)
     glPopMatrix()
     
-    # Draw cave walls - textured with alternating blocks
+    # Draw cave walls - solid walls
+    wall_thickness = 40
     # Back wall
-    for i in range(16):  # More blocks for larger cave
-        for j in range(8):
-            block_x = -cave_width/2 + (i * 25) + 12.5
-            block_z = 25 + (j * 25)
-            glPushMatrix()
-            glTranslatef(block_x, -cave_depth/2 + wall_thickness/2, block_z)
-            if (i + j) % 3 == 0:
-                glColor3f(0.05, 0.05, 0.05)  # Almost black
-            elif (i + j) % 3 == 1:
-                glColor3f(0.1, 0.1, 0.1)   # Very dark grey
-            else:
-                glColor3f(0.2, 0.2, 0.2)   # Dark grey
-            glScalef(25, wall_thickness, 25)
-            glutSolidCube(1)
-            glPopMatrix()
-    
+    glPushMatrix()
+    glTranslatef(0, -cave_depth/2, cave_height/2)
+    glColor3f(0.1, 0.1, 0.1)
+    glScalef(cave_width, wall_thickness, cave_height)
+    glutSolidCube(1)
+    glPopMatrix()
+
     # Left wall
-    for i in range(16):
-        for j in range(8):
-            block_y = -cave_depth/2 + (i * 25) + 12.5
-            block_z = 25 + (j * 25)
-            glPushMatrix()
-            glTranslatef(-cave_width/2 + wall_thickness/2, block_y, block_z)
-            if (i + j) % 3 == 0:
-                glColor3f(0.0, 0.0, 0.0)   # Black
-            elif (i + j) % 3 == 1:
-                glColor3f(0.15, 0.15, 0.15) # Dark grey
-            else:
-                glColor3f(0.1, 0.1, 0.1)   # Very dark grey
-            glScalef(wall_thickness, 25, 25)
-            glutSolidCube(1)
-            glPopMatrix()
-    
-    # Right wall  
-    for i in range(16):
-        for j in range(8):
-            block_y = -cave_depth/2 + (i * 25) + 12.5
-            block_z = 25 + (j * 25)
-            glPushMatrix()
-            glTranslatef(cave_width/2 - wall_thickness/2, block_y, block_z)
-            if (i + j) % 3 == 0:
-                glColor3f(0.15, 0.15, 0.15) # Dark grey
-            else:
-                glColor3f(0.0, 0.0, 0.0)   # Black
-            glScalef(wall_thickness, 25, 25)
-            glutSolidCube(1)
-            glPopMatrix()
-    
-    # Front wall with entry opening
-    for i in range(16):
-        for j in range(8):
-            # Create entry opening in the middle of the front wall
-            entry_start_i = 6  # Start of entry opening
-            entry_end_i = 10   # End of entry opening  
-            entry_height = 4   # Height of entry (up to j=4)
-            
-            # Skip blocks to create the entry opening
-            if entry_start_i <= i <= entry_end_i and j <= entry_height:
-                continue  # Skip this block to create the opening
-                
-            block_x = -cave_width/2 + (i * 25) + 12.5
-            block_z = 25 + (j * 25)
-            glPushMatrix()
-            glTranslatef(block_x, cave_depth/2 - wall_thickness/2, block_z)
-            if (i + j) % 3 == 0:
-                glColor3f(0.1, 0.1, 0.1)   # Very dark grey
-            elif (i + j) % 3 == 1:
-                glColor3f(0.0, 0.0, 0.0)   # Black
-            else:
-                glColor3f(0.15, 0.15, 0.15) # Dark grey
-            glScalef(25, wall_thickness, 25)
-            glutSolidCube(1)
-            glPopMatrix()
-    
+    glPushMatrix()
+    glTranslatef(-cave_width/2, 0, cave_height/2)
+    glColor3f(0.1, 0.1, 0.1)
+    glScalef(wall_thickness, cave_depth, cave_height)
+    glutSolidCube(1)
+    glPopMatrix()
+
+    # Right wall
+    glPushMatrix()
+    glTranslatef(cave_width/2, 0, cave_height/2)
+    glColor3f(0.1, 0.1, 0.1)
+    glScalef(wall_thickness, cave_depth, cave_height)
+    glutSolidCube(1)
+    glPopMatrix()
+
+    # Front wall with opening
+    opening_width = 100
+    # Left part of front wall
+    glPushMatrix()
+    glTranslatef(-cave_width/4 - opening_width/4, cave_depth/2, cave_height/2)
+    glColor3f(0.1, 0.1, 0.1)
+    glScalef(cave_width/2 - opening_width/2, wall_thickness, cave_height)
+    glutSolidCube(1)
+    glPopMatrix()
+
+    # Right part of front wall
+    glPushMatrix()
+    glTranslatef(cave_width/4 + opening_width/4, cave_depth/2, cave_height/2)
+    glColor3f(0.1, 0.1, 0.1)
+    glScalef(cave_width/2 - opening_width/2, wall_thickness, cave_height)
+    glutSolidCube(1)
+    glPopMatrix()
+
+    # Top part of front wall
+    glPushMatrix()
+    glTranslatef(0, cave_depth/2, cave_height - 40)
+    glColor3f(0.1, 0.1, 0.1)
+    glScalef(opening_width, wall_thickness, 80)
+    glutSolidCube(1)
+    glPopMatrix()
+
     # Cave ceiling
-    for i in range(16):
-        for j in range(16):
-            block_x = -cave_width/2 + (i * 25) + 12.5
-            block_y = -cave_depth/2 + (j * 25) + 12.5
-            glPushMatrix()
-            glTranslatef(block_x, block_y, cave_height)
-            if (i + j) % 4 == 0:
-                glColor3f(0.0, 0.0, 0.0)   # Black
-            elif (i + j) % 4 == 1:
-                glColor3f(0.1, 0.1, 0.1)   # Very dark grey
-            else:
-                glColor3f(0.2, 0.2, 0.2)   # Dark grey
-            glScalef(25, 25, 15)
-            glutSolidCube(1)
-            glPopMatrix()
+    glPushMatrix()
+    glTranslatef(0, 0, cave_height)
+    glColor3f(0.2, 0.2, 0.2)
+    glScalef(cave_width, cave_depth, wall_thickness)
+    glutSolidCube(1)
+    glPopMatrix()
     
     # Add CRYSTALS - various colors and sizes
     crystal_positions = [
@@ -2253,9 +2349,9 @@ def draw_shapes():
     house_y = -800  # Bottom-left corner
     draw_house(house_x, house_y, 0)
 
-    # Draw the large cave in top-right corner with crystals, mushrooms, and rocks
-    cave_x = 800   # Top-right corner
-    cave_y = 800
+    # Draw the large cave in bottom-left corner with crystals, mushrooms, and rocks
+    cave_x = -2500   # Bottom-left corner
+    cave_y = -2500
     draw_cave(cave_x, cave_y, 0)
     
     # Draw neighbor houses with their features
@@ -2348,6 +2444,73 @@ def draw_shapes():
     glColor3f(1.0, 0.8, 0.6)  # Skin color for arms
     gluCylinder(gluNewQuadric(), 7, 5, 35, 20, 20)
     glPopMatrix()
+    
+    # --- SWORD (positioned at hands with rotation) ---
+    if current_weapon == "sword":
+        if camera_mode == 2:  # First person mode - draw sword at hand position
+            # Draw sword within player's transformation matrix so it moves with player
+            # Save current matrix state
+            glPushMatrix()
+            
+            # Position sword at center between hands
+            glTranslatef(0, 0, 75)  # Center position at hand height
+            glTranslatef(0, 40, 0)  # Forward position
+            
+            # Rotate sword based on sword_rotation
+            if sword_rotation == 0:
+                # Handle at right hand, blade extends to left
+                glRotatef(0, 0, 0, 1)  # No rotation
+                glTranslatef(15, 0, 0)  # Offset to right hand
+            else:
+                # Handle at left hand, blade extends to right
+                glRotatef(180, 0, 0, 1)  # Rotate 180 degrees around Z axis
+                glTranslatef(-15, 0, 0)  # Offset to left hand
+                
+            glRotatef(90, 0, 1, 0)  # Rotate to be horizontal
+            
+            # Draw sword with handle and blade
+            # Handle
+            glColor3f(0.4, 0.2, 0.1)  # Brown handle
+            gluCylinder(gluNewQuadric(), 5, 5, 15, 20, 20)  # Draw handle
+            
+            # Blade
+            glTranslatef(0, 0, 15)  # Move to end of handle
+            glColor3f(0.75, 0.75, 0.75)  # Silver blade
+            gluCylinder(gluNewQuadric(), 5, 2, 65, 20, 20)  # Draw tapered blade
+            
+            # Restore matrix state
+            glPopMatrix()
+            
+            if game_over:
+                glRotatef(death_rotation, 1, 0, 0)
+        else:  # Third person or top view - draw sword at hand position
+            glPushMatrix()
+            # Position sword at center between hands
+            glTranslatef(0, 0, 75)  # Center position at hand height
+            
+            # Rotate sword based on sword_rotation
+            if sword_rotation == 0:
+                # Handle at right hand, blade extends to left
+                glRotatef(0, 0, 0, 1)  # No rotation
+                glTranslatef(15, 0, 0)  # Offset to right hand
+            else:
+                # Handle at left hand, blade extends to right
+                glRotatef(180, 0, 0, 1)  # Rotate 180 degrees around Z axis
+                glTranslatef(-15, 0, 0)  # Offset to left hand
+                
+            glRotatef(90, 0, 1, 0)  # Rotate to be horizontal
+            
+            # Draw sword with handle and blade
+            # Handle
+            glColor3f(0.4, 0.2, 0.1)  # Brown handle
+            gluCylinder(gluNewQuadric(), 5, 5, 15, 20, 20)  # Draw handle
+            
+            # Blade
+            glTranslatef(0, 0, 15)  # Move to end of handle
+            glColor3f(0.75, 0.75, 0.75)  # Silver blade
+            gluCylinder(gluNewQuadric(), 5, 2, 65, 20, 20)  # Draw tapered blade
+            
+            glPopMatrix()
 
     # --- RIGHT ARM + GUN ---
     glPushMatrix()
@@ -2356,9 +2519,28 @@ def draw_shapes():
     glColor3f(1.0, 0.8, 0.6)  # Skin color for arms
     gluCylinder(gluNewQuadric(), 7, 5, 35, 20, 20)
 
-    glTranslatef(-15, 0, 0)  # Move to gun position
-    glColor3f(0.2, 0.2, 0.2)
-    gluCylinder(gluNewQuadric(), 7, 2, 65, 20, 20)
+    # WEAPON LOGIC
+    if current_weapon == "gun":
+        glTranslatef(-15, 0, 0)  # Move to gun position
+        glColor3f(0.2, 0.2, 0.2)
+        gluCylinder(gluNewQuadric(), 7, 2, 65, 20, 20)
+    elif current_weapon == "fishing_rod":
+        # Fishing Rod
+        glTranslatef(0, 0, 20)
+        glRotatef(45, 1, 0, 0)
+        glColor3f(0.5, 0.35, 0.05)
+        gluCylinder(gluNewQuadric(), 2, 2, 150, 10, 10)
+        # Fishing line
+        glPushMatrix()
+        glTranslatef(0, 0, 150)
+        glColor3f(0.8, 0.8, 0.8)
+        glLineWidth(1)
+        glBegin(GL_LINES)
+        glVertex3f(0, 0, 0)
+        glVertex3f(0, 20, -20)
+        glEnd()
+        glPopMatrix()
+
     glPopMatrix()
 
     # --- HEAD OR SPHERE ---
@@ -2394,7 +2576,7 @@ def keyboardListener(key, x, y):
     """Handle keyboard input"""
     global player_x, player_y, player_z, player_cam_angle, game_over, score, enemy_list, bullets_x, bullets_y, bullets_z
     global bullets_direction_x, bullets_direction_y, bullets_angle, missed, cheat_mode, cam_spinner, first_person
-    global player_lives, player_hit_count, death_rotation, is_jumping, jump_velocity, jump_speed, move_speed
+    global player_lives, player_hit_count, death_rotation, is_jumping, jump_velocity, jump_speed, move_speed, current_weapon
    
     # Don't allow movement if game over
     if game_over and key != b'r':
@@ -2404,6 +2586,17 @@ def keyboardListener(key, x, y):
         player_cam_angle += 360
     if player_cam_angle >= 360:
         player_cam_angle = 0
+
+    if key == b'z':
+        if current_weapon == "gun":
+            current_weapon = "sword"
+            print("Switched to Sword")
+        elif current_weapon == "sword":
+            current_weapon = "fishing_rod"
+            print("Switched to Fishing Rod")
+        else:
+            current_weapon = "gun"
+            print("Switched to Gun")
 
     if key == b'w':  # Move forward
         player_cam_angle_rad = math.radians(player_cam_angle)
@@ -2541,30 +2734,48 @@ def specialKeyListener(key, x, y):
 
 def mouseListener(button, state, x, y):
     global mouse_left, bullets_x, bullets_y, bullets_z, bullets_direction_x, bullets_direction_y, bullets_angle
-    global player_x, player_y, player_cam_angle, first_person, cam_spinner, game_over, camera_mode
+    global player_x, player_y, player_cam_angle, first_person, cam_spinner, game_over, camera_mode, current_weapon, sword_rotation
    
     # Don't allow shooting if game over
     if game_over and button == GLUT_LEFT_BUTTON:
         return
    
     if button == GLUT_LEFT_BUTTON and state == GLUT_DOWN:
-        # Create a new bullet
-        player_cam_angle_rad = math.radians(player_cam_angle)
-        bullet_direction_x = -math.sin(player_cam_angle_rad)
-        bullet_direction_y = math.cos(player_cam_angle_rad)
-       
-        # Position bullet at gun tip
-        gun_length = 65
-        bullet_x = player_x + bullet_direction_x * gun_length
-        bullet_y = player_y + bullet_direction_y * gun_length
-       
-        # Add new bullet to lists
-        bullets_x.append(bullet_x)
-        bullets_y.append(bullet_y)
-        bullets_z.append(75)
-        bullets_direction_x.append(bullet_direction_x)
-        bullets_direction_y.append(bullet_direction_y)
-        bullets_angle.append(player_cam_angle)
+        if current_weapon == "gun":
+            # Create a new bullet
+            player_cam_angle_rad = math.radians(player_cam_angle)
+            bullet_direction_x = -math.sin(player_cam_angle_rad)
+            bullet_direction_y = math.cos(player_cam_angle_rad)
+           
+            # Position bullet at gun tip
+            gun_length = 65
+            bullet_x = player_x + bullet_direction_x * gun_length
+            bullet_y = player_y + bullet_direction_y * gun_length
+           
+            # Add new bullet to lists
+            bullets_x.append(bullet_x)
+            bullets_y.append(bullet_y)
+            bullets_z.append(75)
+            bullets_direction_x.append(bullet_direction_x)
+            bullets_direction_y.append(bullet_direction_y)
+            bullets_angle.append(player_cam_angle)
+        elif current_weapon == "sword":
+            # Rotate sword more slowly by using smaller increments
+            # We'll use a counter to slow down the rotation
+            global sword_swing_counter
+            
+            # Only rotate the sword every 3 clicks
+            sword_swing_counter = (sword_swing_counter + 1) % 3
+            
+            if sword_swing_counter == 0:
+                # Toggle between 0 and 90 degrees only
+                if sword_rotation == 0:
+                    sword_rotation = 90
+                else:
+                    sword_rotation = 0
+                    
+                # Check for sword-enemy collisions when swinging
+                check_sword_enemy_collisions()
    
     if button == GLUT_RIGHT_BUTTON and state == GLUT_UP:
         # Cycle through camera modes: 0 (top view) -> 1 (third person) -> 2 (first person) -> 0
