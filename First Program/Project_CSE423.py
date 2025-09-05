@@ -343,6 +343,20 @@ def draw_hud():
     for char in stamina_text:
         glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, ord(char))
 
+    # --- Score Display ---
+    glColor3f(1.0, 1.0, 1.0) # White text
+    glRasterPos2f(30, 680) # Position below stamina bar
+    score_text = f"Score: {score}"
+    for char in score_text:
+        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, ord(char))
+
+    # --- Lives Display ---
+    glColor3f(1.0, 1.0, 1.0) # White text
+    glRasterPos2f(30, 650) # Position below score
+    lives_text = f"Lives: {player_lives}"
+    for char in lives_text:
+        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, ord(char))
+
     # --- Game Over Text ---
     if game_over:
         glColor3f(1.0, 0.0, 0.0) # Red
@@ -3135,13 +3149,30 @@ def keyboardListener(key, x, y):
     if player_cam_angle >= 360:
         player_cam_angle = 0
 
+    if key == b'r':
+        player_x = 0
+        player_y = 0
+        player_z = 0
+        score = 0
+        player_lives = 5
+        player_hit_count = 0
+        death_rotation = 0
+        is_jumping = False
+        jump_velocity = 0
+        current_weapon = "gun"
+        is_sprinting = False
+        player_stamina = 100.0
+        enemy_list = []
+        game_over = False
+        print("Game reset!")
+
     if key == b'z':
         if current_weapon == "gun":
             current_weapon = "sword"
             print("Switched to Sword")
         elif current_weapon == "sword":
-            current_weapon = "fishing_rod"
-            print("Switched to Fishing Rod")
+            current_weapon = "gun"
+            print("Switched to Gun")
         else:
             current_weapon = "gun"
             print("Switched to Gun")
