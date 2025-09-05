@@ -119,6 +119,7 @@ merchant3_move_timer = 120
 merchant3_direction = 1
 cow_tail_angle = 0     # For cow tail swaying
 
+
 # (SAMANIA): CODE FOR DAY/NIGHT CYCLE AND SEASONS                  
 
 # Day-Night Cycle
@@ -178,7 +179,8 @@ def update_day_night_cycle():
         is_day = False
         print("Night has fallen.")
 
-# ======================================        
+# ======================================                      
+
 
 
 def check_game_over():
@@ -228,14 +230,12 @@ def update_player_jump():
             jump_velocity = 0
    
 
-
 def collision_detector(x1, y1, radius1, x2, y2, radius2):
     dx = x2 - x1
     dy = y2 - y1
    
     dx_sq = dx **2
     dy_sq = dy **2
-
 
     sum = dx_sq + dy_sq
    
@@ -259,39 +259,29 @@ def line_hits_enemy(bullet_x, bullet_y, direction_x, direction_y, enemy_x, enemy
     dx = enemy_x - bullet_x
     dy = enemy_y - bullet_y
 
-
     dx_squared = dx * dx
     dy_squared = dy * dy
 
-
     distance_squared = dx_squared + dy_squared
     dot_product = dx * direction_x + dy * direction_y
-
 
     if dot_product < 0:
         collision_status = False
         return collision_status
 
-
     direction_length_sq = direction_x ** 2 + direction_y ** 2
-
 
     if direction_length_sq == 0:
         collision_status = False
         return collision_status
 
-
     numerator = abs(dx * direction_y - dy * direction_x)
-
 
     denominator = math.sqrt(direction_length_sq)
 
-
     perpendicular_distance = numerator / denominator
 
-
     actual_distance = perpendicular_distance
-
 
     if actual_distance <= enemy_radius:
         collision_status = True
@@ -614,13 +604,6 @@ def can_move_to_position(new_x, new_y):
     
     return True
 
-
-
-
-
-
-
-
 def check_sword_enemy_collisions():
     """
     Check for collisions between the sword and enemies.
@@ -678,16 +661,12 @@ def check_bullet_enemy_collisions():
     Increase score for each hit.
     Spawn new enemies to replace removed ones.
     """
-
-
     global bullets_x, bullets_y, bullets_z
     global bullets_direction_x, bullets_direction_y, bullets_angle
     global enemy_list, score, enem_rad_bottom, cheat_mode
 
-
     bullet_bag = []           # Indices of bullets to remove
     remove_enemy_bag = []     # Indices of enemies to remove
-
 
     # Determine effective hit radius
     main_rad = enem_rad_bottom
@@ -696,16 +675,13 @@ def check_bullet_enemy_collisions():
         main_rad *= 5
         temp_main_rad = main_rad
 
-
     # Check each bullet against each enemy
     for bullets in range(len(bullets_x)):
         bullet_x = bullets_x[bullets]
         bullet_y = bullets_y[bullets]
 
-
         for enemy_num in range(len(enemy_list)):
             enemy_x, enemy_y, enemy_z = enemy_list[enemy_num]
-
 
             if collision_detector(bullet_x, bullet_y, 2, enemy_x, enemy_y, main_rad):
                 if bullets not in bullet_bag:
@@ -715,8 +691,6 @@ def check_bullet_enemy_collisions():
                 score += 1
                 print(f"Hit! Score: {score}")
 
-
-   
     #bubble sort for bullets
     n = len(bullet_bag)
     for i in range(n):
@@ -727,13 +701,11 @@ def check_bullet_enemy_collisions():
                 bullet_bag[j] = bullet_bag[j+1]
                 bullet_bag[j+1] = temp
 
-
     # ----------------------------
     # Reverse the sorted bullets manually
     reversed_bullet_bag = []
     for i in range(len(bullet_bag)-1, -1, -1):
         reversed_bullet_bag.append(bullet_bag[i])
-
 
     # Remove bullets
     for bullets in reversed_bullet_bag:
@@ -762,13 +734,10 @@ def check_bullet_enemy_collisions():
             bullets_angle.pop(bullets)
             temp_val_angle = None
 
-
-   
     #Removing enemy
     remove_list = []
     for dead_enemy in remove_enemy_bag:
         remove_list.append(dead_enemy)
-
 
     while len(remove_list) > 0:
         val_new = remove_list[0]
@@ -781,17 +750,12 @@ def check_bullet_enemy_collisions():
             enemy_list.pop(val_new)
             dead_bot = None
 
-
-   
     # Spawn new enemies for each removed enemy
     total_dead = len(remove_enemy_bag)
     make_new = 0
     while make_new < total_dead:
         make_new_enemy()
         make_new += 1
-
-
-
 
 def make_new_enemy():
     """
@@ -814,23 +778,18 @@ def make_new_enemy():
         tries_remaining = bot_create_tries - tries
         bot_create_tries_not_reached = tries_remaining > 0  # True if we can still try
 
-
         # Step 2: Check if enemy is already spawned
         enemy_not_yet_spawned = not enemy_spawned  # True if we still need to spawn
 
-
         # Step 3: Combine both conditions
         should_continue = bot_create_tries_not_reached and enemy_not_yet_spawned
-
 
         # Step 4: Break if we should not continue
         if not should_continue:
             break
 
-
         # --- Place the body of the loop here ---
         # For example, generate random position, check distance, etc.
-
 
         # Increment tries at the end
         tries += 1
@@ -868,7 +827,7 @@ def make_new_enemy():
        
         if far_player and not_in_house and not_in_cave and not_in_neighbor1 and not_in_neighbor2 and not_in_neighbor3:
             # Z-coordinate (always 0 for now)
-            enemy_z = 0
+            enemy_z = enem_rad_bottom
            
             # Create enemy tuple in steps
             enemy_position = (enemy_x, enemy_y, enemy_z)
@@ -880,11 +839,8 @@ def make_new_enemy():
             # Mark spawn success
             enemy_spawned = True
         else:
-
-
             print(f"Enemy too close to player on attempt {tries + 1}, trying again...")
    
-       
         # Increment attempt counter
         tries = tries + 1
        
@@ -903,12 +859,10 @@ def make_new_enemy():
 def draw_scaled_cuboid(length=200, width=100, height=80):
     glPushMatrix()
 
-
     # Scale factors relative to cube size
     # glutSolidCube(1) makes a unit cube, we scale it to desired size
     glScalef(length, width, height)
     glutSolidCube(1)  
-
 
     glPopMatrix()
 
@@ -943,7 +897,7 @@ def draw_chicken(x, y, z):
     glTranslatef(0, 12, 22)  # Position beak in front of head
     glRotatef(90, 1, 0, 0)  # Point cone forward
     glColor3f(1.0, 0.2, 0.2)  # Red color
-    glutSolidCone(2, 4, 8, 8)
+    gluCylinder(gluNewQuadric(), 2, 0, 4, 8, 8)
     glPopMatrix()
     
     # Left leg (cylindrical)
@@ -1122,13 +1076,13 @@ def draw_cow(x, y, z):
     glPushMatrix()
     glTranslatef(-3, 15, 38)
     glColor3f(0.9, 0.9, 0.8)  # Off-white horns
-    glutSolidCone(1, 6, 6, 6)
+    gluCylinder(gluNewQuadric(), 1, 0, 6, 6, 6)
     glPopMatrix()
     
     glPushMatrix()
     glTranslatef(3, 15, 38)
     glColor3f(0.9, 0.9, 0.8)  # Off-white horns
-    glutSolidCone(1, 6, 6, 6)
+    gluCylinder(gluNewQuadric(), 1, 0, 6, 6, 6)
     glPopMatrix()
     
     # Cow legs (white with black hooves)
@@ -1207,7 +1161,8 @@ def draw_milk_cans(x, y, z):
         glTranslatef(8, 0, 15)
         glRotatef(90, 0, 1, 0)
         glColor3f(0.5, 0.5, 0.6)  # Dark handle
-        glutSolidTorus(1, 3, 8, 12)
+        # Replace torus with cylinder for handle
+        gluCylinder(gluNewQuadric(), 2.5, 2.5, 2, 8, 1)
         glPopMatrix()
         
         glPopMatrix()
@@ -1330,7 +1285,8 @@ def draw_apple_basket(x, y, z):
     glPushMatrix()
     glTranslatef(0, 0, basket_height)
     glColor3f(0.5, 0.3, 0.1)  # Darker brown rim
-    glutSolidTorus(1, basket_radius, 8, 16)
+    # Replace torus with cylinder for rim
+    gluCylinder(gluNewQuadric(), basket_radius + 0.5, basket_radius + 0.5, 2, 16, 1)
     glPopMatrix()
     
     # Draw basket handle
@@ -1338,7 +1294,8 @@ def draw_apple_basket(x, y, z):
     glTranslatef(0, 0, basket_height + 5)
     glRotatef(90, 1, 0, 0)
     glColor3f(0.5, 0.3, 0.1)  # Brown handle
-    glutSolidTorus(1.5, 8, 8, 12)
+    # Replace torus with cylinder for handle
+    gluCylinder(gluNewQuadric(), 6.5, 6.5, 3, 12, 1)
     glPopMatrix()
     
     # Draw apples in the basket
@@ -1630,7 +1587,8 @@ def draw_merchant(merchant_x, merchant_y, merchant_angle):
         glPushMatrix()
         glTranslatef(0, 0, basket_height)
         glColor3f(0.5, 0.3, 0.1)  # Darker brown rim
-        glutSolidTorus(0.8, basket_radius, 8, 16)
+        # Replace torus with cylinder for rim
+        gluCylinder(gluNewQuadric(), basket_radius + 0.4, basket_radius + 0.4, 1.6, 16, 1)
         glPopMatrix()
         
         # Draw basket handle (connected to hand)
@@ -1638,7 +1596,8 @@ def draw_merchant(merchant_x, merchant_y, merchant_angle):
         glTranslatef(0, 0, basket_height + 3)
         glRotatef(90, 1, 0, 0)
         glColor3f(0.5, 0.3, 0.1)  # Brown handle
-        glutSolidTorus(1, 6, 8, 12)
+        # Replace torus with cylinder for handle
+        gluCylinder(gluNewQuadric(), 5, 5, 2, 12, 1)
         glPopMatrix()
         
         # Draw apples in the basket
@@ -1679,7 +1638,6 @@ def update_enemies():
     global enemy_list, player_x, player_y
     global player_hit_count, count, player_lives
 
-
     # Animate bottom sphere
     if enem_growing:
         enem_rad_bottom += 0.125
@@ -1690,21 +1648,20 @@ def update_enemies():
         if enem_rad_bottom <= 35:
             enem_growing = True
 
-
     enem_rad_top = 2 * enem_rad_bottom - 55
 
-
-    enemy_speed = 0.1
+    # Zombie movement speed - controls how fast zombies chase the player
+    # Lower values = slower zombies, higher values = faster zombies
+    # Current value 0.1 provides moderate zombie speed for balanced gameplay
+    enemy_speed = 0.8
     updated_enemies = []
     enemies_to_respawn = []
-
 
     for enemy_num, enemy in enumerate(enemy_list):
         enemy_x, enemy_y, enemy_z = enemy
         diff_x = player_x - enemy_x
         diff_y = player_y - enemy_y
         distance = math.sqrt(diff_x**2 + diff_y**2)
-
 
         if distance > 10:
             if distance != 0:
@@ -1725,7 +1682,6 @@ def update_enemies():
                 enemy_x = new_x
                 enemy_y = new_y
 
-
         # Check collision with player
         player_radius = 15
         if collision_detector(enemy_x, enemy_y, enem_rad_bottom, player_x, player_y, player_radius):
@@ -1735,11 +1691,9 @@ def update_enemies():
                 print(player_lives)
                 print(f"Player Hit! Total contacts: {player_hit_count}")
 
-
             enemies_to_respawn.append(enemy_num)
         else:
             updated_enemies.append((enemy_x, enemy_y, enemy_z))
-
 
     #Selection sort in descending order
     for i in range(len(enemies_to_respawn)):
@@ -1750,38 +1704,27 @@ def update_enemies():
         # Swap
         enemies_to_respawn[i], enemies_to_respawn[max_idx] = enemies_to_respawn[max_idx], enemies_to_respawn[i]
 
-
     # Remove enemies safely
     for index in enemies_to_respawn:
         if index < len(enemy_list):
             enemy_list.pop(index)
             make_new_enemy()
 
-
     enemy_list = updated_enemies
-
-
-
-
-
 
 def cheat_mode_behavior():
     global player_cam_angle, bullets_x, bullets_y, bullets_z, bullets_direction_x, bullets_direction_y, bullets_angle
     global enemy_list, imp_val, angle_hacks
 
-
     if not cheat_mode:
         return
-
 
     # Ensure at least 5 enemies
     while len(enemy_list) < 5:
         make_new_enemy()
 
-
     # Spin player continuously
     player_cam_angle = (player_cam_angle + 5) % 360
-
 
     # Gun tip coordinates
     angle_rad = math.radians(player_cam_angle)
@@ -1791,22 +1734,16 @@ def cheat_mode_behavior():
     direction_x = -math.sin(angle_rad)
     direction_y = math.cos(angle_rad)
 
-
     # Angle tolerance in radians
    
-
-
     # Initialize boolean list for this frame
     cheat_frame_fired = []
-
 
     # Find out how many enemies currently exist
     num_enemies = len(enemy_list)
 
-
     # Temporary variable for loop
     index = 0
-
 
     # Loop through each enemy and mark it as not fired
     while index < num_enemies:
@@ -1822,7 +1759,6 @@ def cheat_mode_behavior():
         # Increment loop counter
         index += 1
 
-
     # Loop through all enemies
     enemy_num = 0
     while enemy_num < len(enemy_list):
@@ -1831,9 +1767,7 @@ def cheat_mode_behavior():
             enemy_num += 1
             continue
 
-
         enemy_x, enemy_y, _ = enemy_list[enemy_num]
-
 
         # Vector from gun tip to enemy
         vec_x = enemy_x - bullet_start_x
@@ -1845,16 +1779,13 @@ def cheat_mode_behavior():
             enemy_num += 1
             continue
 
-
         # Normalize vector
         vec_x /= vec_length
         vec_y /= vec_length
 
-
         # Calculate angle difference between gun direction and vector to enemy
         dot = direction_x * vec_x + direction_y * vec_y
         angle_diff = math.acos(max(min(dot, 1), -1))  # clamp dot to avoid math errors
-
 
         if angle_diff <= angle_hacks:
             # Fire only on every other frame
@@ -1867,14 +1798,11 @@ def cheat_mode_behavior():
                 bullets_angle.append(player_cam_angle)
             imp_val += 1
 
-
             # Mark this enemy as fired at
             cheat_frame_fired[enemy_num] = True
 
-
             # Fire only one bullet per frame
             break
-
 
         enemy_num += 1
 
@@ -2214,8 +2142,11 @@ def draw_shapes():
 
     # Only maintain 5 enemies if not game over
     if not game_over:
-        while len(enemy_list) < 5:
-            make_new_enemy()
+        if is_day:
+            enemy_list.clear() # Despawn all enemies during the day
+        else:
+            while len(enemy_list) < 5:
+                make_new_enemy()
 
     # Rearrange world objects according to user's drawing
     # Trees positioned around the expanded map (3000x3000 grid) - removed trees inside enlarged houses
@@ -2266,7 +2197,7 @@ def draw_shapes():
     #  leaf color palette for the current season
     leaf_color_palette = season_leaf_colors.get(current_season, [])
 
-
+    
     for tree_x, tree_y, tree_z in tree_positions:
         # Enhanced tree with many branches and varied leaf clusters
         glPushMatrix()
@@ -2279,11 +2210,9 @@ def draw_shapes():
         # Draw trunk (solid cylinder)
         glColor3f(0.55, 0.27, 0.07)  # Brown
         quadric = gluNewQuadric()
-        gluQuadricDrawStyle(quadric, GLU_FILL)
         gluCylinder(quadric, trunk_radius, trunk_radius * 0.6, trunk_length, 24, 24)
-        gluDeleteQuadric(quadric)
-
-
+        
+      
         # (SAMANIA): CODE FOR SEASONAL TREES (LEAF RENDERING LOGIC)      
        
         # Only draw leaves if it is not winter
@@ -2308,95 +2237,74 @@ def draw_shapes():
                     glTranslatef(0, 0, level_height)
                     glRotatef(final_angle, 0, 0, 1)  # Spread branches around Z
                     glRotatef(20 + level * 8, 1, 0, 0)  # Tilt upward, more for higher levels
-                
-                # Draw branch (solid cylinder)
-                glColor3f(0.4, 0.3, 0.1)
-                branch_radius = trunk_radius * (0.25 - level * 0.03)
-                branch_quad = gluNewQuadric()
-                gluQuadricDrawStyle(branch_quad, GLU_FILL)
-                gluCylinder(branch_quad, branch_radius, branch_radius * 0.3, level_branch_length, 12, 12)
-                gluDeleteQuadric(branch_quad)
-                
-                # Draw multiple leaf clusters at end of branch for more spread
-                glTranslatef(0, 0, level_branch_length)
-                
-                # Create 2-3 leaf clusters per branch tip for simpler appearance
-                num_leaf_clusters = 2 + (i % 2)  # 2-3 clusters per branch
-                for cluster in range(num_leaf_clusters):
-                    glPushMatrix()
                     
-                    # Spread leaf clusters around the branch tip
-                    cluster_angle = (360.0 * cluster / num_leaf_clusters) + (i * 13)  # Offset for variation
-                    cluster_distance = leaf_radius * 0.8  # How far from branch tip
+                    # Draw branch (solid cylinder)
+                    glColor3f(0.4, 0.3, 0.1)
+                    branch_radius = trunk_radius * (0.25 - level * 0.03)
+                    branch_quad = gluNewQuadric()
+                    gluCylinder(branch_quad, branch_radius, branch_radius * 0.3, level_branch_length, 12, 12)
                     
-                    # Position each leaf cluster
-                    cluster_x = math.cos(math.radians(cluster_angle)) * cluster_distance
-                    cluster_y = math.sin(math.radians(cluster_angle)) * cluster_distance
-                    cluster_z = -leaf_radius * 0.3 + (cluster % 2) * leaf_radius * 0.6  # Vertical spread
+                    # Draw multiple leaf clusters at end of branch for more spread
+                    glTranslatef(0, 0, level_branch_length)
                     
-                    glTranslatef(cluster_x, cluster_y, cluster_z)
-                    
-                    # Vary leaf size and color based on branch level and position
-                    size_variation = 0.6 + (cluster % 3) * 0.3  # Size varies from 0.6 to 1.2
-                    current_leaf_radius = leaf_radius * size_variation * (1.2 - level * 0.1)
-                       
-                       
-                    # (SAMANIA): MODIFICATION FOR SEASONAL LEAF COLOR                  
+                    # Create 2-3 leaf clusters per branch tip for simpler appearance
+                    num_leaf_clusters = 2 + (i % 2)  # 2-3 clusters per branch
+                    for cluster in range(num_leaf_clusters):
+                        glPushMatrix()
+                        
+                        # Spread leaf clusters around the branch tip
+                        cluster_angle = (360.0 * cluster / num_leaf_clusters) + (i * 13)  # Offset for variation
+                        cluster_distance = leaf_radius * 0.8  # How far from branch tip
+                        
+                        # Position each leaf cluster
+                        cluster_x = math.cos(math.radians(cluster_angle)) * cluster_distance
+                        cluster_y = math.sin(math.radians(cluster_angle)) * cluster_distance
+                        cluster_z = -leaf_radius * 0.3 + (cluster % 2) * leaf_radius * 0.6  # Vertical spread
+                        
+                        glTranslatef(cluster_x, cluster_y, cluster_z)
+                        
+                        # Vary leaf size and color based on branch level and position
+                        size_variation = 0.6 + (cluster % 3) * 0.3  # Size varies from 0.6 to 1.2
+                        current_leaf_radius = leaf_radius * size_variation * (1.2 - level * 0.1)
+                        
+                   
+                        # (SAMANIA): MODIFICATION FOR SEASONAL LEAF COLOR                  
                   
-                    # dynamic seasonal palette.
-                    green_variations = leaf_color_palette                    
+                        # dynamic seasonal palette.
+                        green_variations = leaf_color_palette
+                     
 
-                    
-                    green_color = green_variations[(i + cluster) % len(green_variations)]
-                    glColor3f(green_color[0], green_color[1], green_color[2])
-                    
-                    leaf_quad = gluNewQuadric()
-                    gluQuadricDrawStyle(leaf_quad, GLU_FILL)
-                    gluSphere(leaf_quad, current_leaf_radius, 20, 20)
-                    gluDeleteQuadric(leaf_quad)
+                        green_color = green_variations[(i + cluster) % len(green_variations)]
+                        glColor3f(green_color[0], green_color[1], green_color[2])
+                        
+                        leaf_quad = gluNewQuadric()
+                        gluSphere(leaf_quad, current_leaf_radius, 20, 20)
+                        
+                        glPopMatrix()
                     
                     glPopMatrix()
-                
-                glPopMatrix()
 
-        # Add a large top leaf cluster with multiple spheres
-        for top_cluster in range(4):
-            glPushMatrix()
-            cluster_angle = 90.0 * top_cluster
-            cluster_radius = leaf_radius * 0.6
-            top_x = math.cos(math.radians(cluster_angle)) * cluster_radius
-            top_y = math.sin(math.radians(cluster_angle)) * cluster_radius
-            top_z = trunk_length + leaf_radius * (0.2 + top_cluster * 0.1)
-            
-            glTranslatef(top_x, top_y, top_z)
-            # Use varied green shades for top clusters too
-            green_variations = [
-                (0.0, 0.8, 0.2),   # Bright green
-                (0.1, 0.7, 0.1),   # Medium green  
-                (0.0, 0.6, 0.3),   # Forest green
-                (0.2, 0.9, 0.2),   # Light green
-                (0.0, 0.5, 0.2),   # Dark green
-                (0.3, 0.8, 0.3),   # Light forest green
-                (0.0, 0.9, 0.4),   # Spring green
-                (0.1, 0.9, 0.3),   # Lime green
-                (0.0, 0.7, 0.4),   # Sea green
-                (0.2, 0.6, 0.1),   # Olive green
-                (0.0, 0.8, 0.5),   # Emerald green
-                (0.3, 0.9, 0.4),   # Mint green
-                (0.1, 0.5, 0.3),   # Pine green
-                (0.0, 0.9, 0.1),   # Neon green
-                (0.2, 0.7, 0.2),   # Grass green
-                (0.1, 0.6, 0.4),   # Sage green
-                (0.0, 0.4, 0.2),   # Deep forest green
-                (0.4, 0.8, 0.2)    # Yellow-green
-            ]
-            top_green_color = green_variations[(i + top_cluster) % len(green_variations)]
-            glColor3f(*top_green_color)
-            top_leaf_quad = gluNewQuadric()
-            gluQuadricDrawStyle(top_leaf_quad, GLU_FILL)
-            gluSphere(top_leaf_quad, leaf_radius * (1.2 + top_cluster * 0.2), 24, 24)
-            gluDeleteQuadric(top_leaf_quad)
-            glPopMatrix()
+            # Add a large top leaf cluster with multiple spheres
+            for top_cluster in range(4):
+                glPushMatrix()
+                cluster_angle = 90.0 * top_cluster
+                cluster_radius = leaf_radius * 0.6
+                top_x = math.cos(math.radians(cluster_angle)) * cluster_radius
+                top_y = math.sin(math.radians(cluster_angle)) * cluster_radius
+                top_z = trunk_length + leaf_radius * (0.2 + top_cluster * 0.1)
+                
+                glTranslatef(top_x, top_y, top_z)
+             
+                # (MASIA): MODIFICATION FOR SEASONAL LEAF COLOR                 
+             
+                # dynamic seasonal palette.
+                green_variations = leaf_color_palette
+
+                top_green_color = green_variations[(i + top_cluster) % len(green_variations)]
+                glColor3f(*top_green_color)
+                top_leaf_quad = gluNewQuadric()
+                gluSphere(top_leaf_quad, leaf_radius * (1.2 + top_cluster * 0.2), 24, 24)
+                glPopMatrix()
 
         glPopMatrix()
 
@@ -2437,15 +2345,56 @@ def draw_shapes():
             glPushMatrix()
             glTranslatef(enemy_x, enemy_y, enemy_z)
            
-            # Bottom sphere (body) - red
-            glColor3f(1, 0, 0)
+            # Zombie body (torso) - pale sickly green
+            glColor3f(0.4, 0.5, 0.3) # Pale sickly green
             gluSphere(gluNewQuadric(), enem_rad_bottom, 20, 20)
+            
+            # Zombie arms - hanging down
+            glPushMatrix()
+            glTranslatef(-enem_rad_bottom * 0.8, 0, enem_rad_bottom * 0.5)
+            glRotatef(-30, 1, 0, 0)  # Slightly forward hanging
+            glColor3f(0.3, 0.4, 0.2) # Darker zombie skin
+            gluCylinder(gluNewQuadric(), 5, 3, enem_rad_bottom * 0.8, 8, 8)
+            glPopMatrix()
+            
+            glPushMatrix()
+            glTranslatef(enem_rad_bottom * 0.8, 0, enem_rad_bottom * 0.5)
+            glRotatef(-30, 1, 0, 0)  # Slightly forward hanging
+            glColor3f(0.3, 0.4, 0.2) # Darker zombie skin
+            gluCylinder(gluNewQuadric(), 5, 3, enem_rad_bottom * 0.8, 8, 8)
+            glPopMatrix()
+            
+            # Zombie legs - standing
+            glPushMatrix()
+            glTranslatef(-enem_rad_bottom * 0.4, 0, -enem_rad_bottom * 0.8)
+            glColor3f(0.2, 0.3, 0.1) # Dark zombie leg color
+            gluCylinder(gluNewQuadric(), 8, 6, enem_rad_bottom * 0.8, 8, 8)
+            glPopMatrix()
+            
+            glPushMatrix()
+            glTranslatef(enem_rad_bottom * 0.4, 0, -enem_rad_bottom * 0.8)
+            glColor3f(0.2, 0.3, 0.1) # Dark zombie leg color
+            gluCylinder(gluNewQuadric(), 8, 6, enem_rad_bottom * 0.8, 8, 8)
+            glPopMatrix()
 
-            # Move up for top sphere (head), lowered to touch bottom sphere
+            # Move up for zombie head
             glTranslatef(0, 0, enem_rad_bottom)  
-            # Top sphere (head) - black
-            glColor3f(0, 0, 0)
+            # Zombie head - pale decaying skin
+            glColor3f(0.35, 0.45, 0.25) # Pale decaying green
             gluSphere(gluNewQuadric(), enem_rad_top, 20, 20)
+            
+            # Zombie eyes - bright red glowing
+            glPushMatrix()
+            glTranslatef(-enem_rad_top * 0.3, enem_rad_top * 0.7, enem_rad_top * 0.2)
+            glColor3f(1.0, 0.0, 0.0) # Bright red eyes
+            gluSphere(gluNewQuadric(), 3, 8, 8)
+            glPopMatrix()
+            
+            glPushMatrix()
+            glTranslatef(enem_rad_top * 0.3, enem_rad_top * 0.7, enem_rad_top * 0.2)
+            glColor3f(1.0, 0.0, 0.0) # Bright red eyes
+            gluSphere(gluNewQuadric(), 3, 8, 8)
+            glPopMatrix()
 
             glPopMatrix()
 
@@ -2577,9 +2526,27 @@ def draw_shapes():
 
     # WEAPON LOGIC
     if current_weapon == "gun":
+        glPushMatrix() # Save current matrix for gun
         glTranslatef(-15, 0, 0)  # Move to gun position
-        glColor3f(0.2, 0.2, 0.2)
-        gluCylinder(gluNewQuadric(), 7, 2, 65, 20, 20)
+        glColor3f(0.5, 0.3, 0.1) # Wood color for gun body
+        gluCylinder(gluNewQuadric(), 10, 3, 80, 20, 20) # Main gun body, larger
+
+        # Add a scope
+        glPushMatrix() # Save matrix for scope
+        glTranslatef(0, 7, 40) # Position scope on top of gun body
+        glRotatef(90, 1, 0, 0) # Rotate to be horizontal
+        glColor3f(0.0, 0.0, 0.0) # Black color for scope
+        gluCylinder(gluNewQuadric(), 3, 3, 20, 10, 10) # Scope cylinder, larger
+        glPopMatrix() # Restore matrix for gun body
+
+        # Add a barrel
+        glPushMatrix() # Save matrix for barrel
+        glTranslatef(0, 0, 80) # Position barrel at the end of the gun body
+        glColor3f(0.0, 0.0, 0.0) # Black color for barrel
+        gluCylinder(gluNewQuadric(), 2, 2, 25, 10, 10) # Barrel cylinder, larger
+        glPopMatrix() # Restore matrix for gun body
+
+        glPopMatrix() # Restore matrix for right arm
     elif current_weapon == "fishing_rod":
         # Fishing Rod
         glTranslatef(0, 0, 20)
@@ -2632,7 +2599,10 @@ def keyboardListener(key, x, y):
     """Handle keyboard input"""
     global player_x, player_y, player_z, player_cam_angle, game_over, score, enemy_list, bullets_x, bullets_y, bullets_z
     global bullets_direction_x, bullets_direction_y, bullets_angle, missed, cheat_mode, cam_spinner, first_person
-    global player_lives, player_hit_count, death_rotation, is_jumping, jump_velocity, jump_speed, move_speed, current_weapon
+    global player_lives, player_hit_count, death_rotation, is_jumping, jump_velocity, jump_speed, move_speed, current_weapon                    
+ 
+    global day_night_target
+  
    
     # Don't allow movement if game over
     if game_over and key != b'r':
@@ -2701,7 +2671,7 @@ def keyboardListener(key, x, y):
         day_night_target = 0.0
         print("Transitioning to Night...")
 
-
+    
     # Reset game with R key
     if key == b'r':
         print("Reset to Life remaining 5, Game Score 0 and Bullets Missed 0")
@@ -2747,10 +2717,7 @@ def keyboardListener(key, x, y):
             move_speed = 2
         print(f"Speed decreased to: {move_speed}")
     
-    # F11 for fullscreen toggle (using 'f' key since F11 might not be available)
-    if key == b'f':
-        glutFullScreen()
-        print("Switching to fullscreen")
+
 
 
 def specialKeyListener(key, x, y):
@@ -2766,16 +2733,12 @@ def specialKeyListener(key, x, y):
        
     offset_x, offset_y, offset_z = camera_offset
 
-
     # Compute current angle and radius from offset
     angle = math.atan2(offset_y, offset_x)
     radius = math.sqrt(offset_x**2 + offset_y**2)
 
-
     # Angle increment for rotation
    
-
-
     if key == GLUT_KEY_LEFT:
         # Rotate counter-clockwise around player
         angle += angle_inc
@@ -2790,7 +2753,6 @@ def specialKeyListener(key, x, y):
         # Move camera down with ground limit
         if offset_z > 50:  # Minimum height above ground
             offset_z -= 10
-
 
     # Update camera offset using polar coordinates
     offset_x = radius * math.cos(angle)
@@ -2831,7 +2793,7 @@ def mouseListener(button, state, x, y):
             global sword_swing_counter
             
             # Only rotate the sword every 3 clicks
-            sword_swing_counter = (sword_swing_counter + 1) % 3
+            sword_swing_counter = sword_swing_counter 
             
             if sword_swing_counter == 0:
                 # Toggle between 0 and 90 degrees only
@@ -2870,7 +2832,6 @@ def update_bullet():
     bullet_speed = 20
     bullet_bag = []
    
-   
     # Check each bullet individually
     for i in range(len(bullets_x)):
         # Calculate new position for current bullet
@@ -2905,27 +2866,19 @@ def update_bullet():
     # Step 1: Manually create a reversed copy of bullet_bag
     # ---------------------------------------------------------
 
-
     # First, copy all elements into a new list
     bullet_indices_copy = []
     for index in bullet_bag:
         bullet_indices_copy.append(index)
-
 
     # Now build a reversed list manually
     bullet_indices_reversed = []
     copy_length = len(bullet_indices_copy)
     current_position = copy_length - 1
 
-
     while current_position >= 0:
         bullet_indices_reversed.append(bullet_indices_copy[current_position])
         current_position = current_position - 1
-
-
-
-
-
 
     for i in bullet_indices_reversed:
        
@@ -2937,7 +2890,6 @@ def update_bullet():
             temp_x = None        
             dummy_x = None        
                  
-       
         #Remove from bullets_y
         if i < len(bullets_y):
             temp_y = bullets_y[i]
@@ -2946,7 +2898,6 @@ def update_bullet():
             temp_y = None
             dummy_y = None
            
-       
         #Remove from bullets_z
         if i < len(bullets_z):
             temp_z = bullets_z[i]
@@ -2955,7 +2906,6 @@ def update_bullet():
             temp_z = None
             dummy_z = None
            
-       
         #Remove from bullets_direction_x
         if i < len(bullets_direction_x):
             temp_dx = bullets_direction_x[i]
@@ -2964,7 +2914,6 @@ def update_bullet():
             temp_dx = None
             dummy_dx = None
            
-       
         #Remove from bullets_direction_y
         if i < len(bullets_direction_y):
             temp_dy = bullets_direction_y[i]
@@ -2973,7 +2922,6 @@ def update_bullet():
             temp_dy = None
             dummy_dy = None
            
-       
         #Remove from bullets_angle
         if i < len(bullets_angle):
             temp_angle = bullets_angle[i]
@@ -2983,7 +2931,6 @@ def update_bullet():
             dummy_angle = None
            
 
-
 def setupCamera():
     """
     Configures the camera's projection and view settings.
@@ -2992,7 +2939,6 @@ def setupCamera():
     for clarity and padding purposes.
     """
     global player_x, player_y, player_z, player_cam_angle, first_person, cheat_mode, cam_spinner, camera_pos, camera_offset, fovY, camera_mode
-
 
     # ------------------ Projection Setup ------------------
     # Switch to projection matrix mode
@@ -3020,7 +2966,6 @@ def setupCamera():
     temp_near = None
     temp_far = None
 
-
     # ------------------ Modelview Setup ------------------
     glMatrixMode(GL_MODELVIEW)
     glLoadIdentity()
@@ -3031,7 +2976,6 @@ def setupCamera():
         _ = modelview_reset
     modelview_reset = None
 
-
     # ------------------ Camera Positioning ------------------
     if camera_mode == 2:  # First Person Mode
         # Determine camera height (including jump height)
@@ -3039,7 +2983,6 @@ def setupCamera():
             cam_z = 110 + player_z  # Higher camera in cheat mode + jump height
         else:
             cam_z = 90 + player_z   # Normal first-person height + jump height
-
 
         # Assign player coordinates
         cam_x = player_x
@@ -3049,7 +2992,6 @@ def setupCamera():
         temp_cam_x = cam_x
         temp_cam_y = cam_y
         temp_cam_z = cam_z
-
 
         # ------------------ Back Offset ------------------
         back_offset = 15  # Move camera slightly backward
@@ -3065,7 +3007,6 @@ def setupCamera():
         # Reset temporary offset variables
         offset_x = None
         offset_y = None
-
 
         # ------------------ Look Target ------------------
         look_distance = 300
@@ -3090,12 +3031,10 @@ def setupCamera():
             look_x = cam_x - math.sin(angle_rad) * look_distance
             look_y = cam_y + math.cos(angle_rad) * look_distance
 
-
         # Temporary variables for clarity
         temp_look_x = look_x
         temp_look_y = look_y
         temp_look_z = look_z
-
 
         # ------------------ Set Camera ------------------
         gluLookAt(cam_x, cam_y, cam_z,
@@ -3164,10 +3103,6 @@ def setupCamera():
         up_x = None
         up_y = None
         up_z = None
-
-
-
-
 def idle():
     """
     Idle function that runs continuously:
@@ -3185,12 +3120,13 @@ def idle():
     
     glutPostRedisplay()
 
+
     # (SAMANIA): CODE - CALL CYCLE UPDATE    
     update_day_night_cycle() # Update the day/night transition
 
     update_bullet()
     update_player_jump()  # Update jumping physics
-    if not game_over:  # Only update enemies if not game over
+    if not game_over and not is_day:  # Only update enemies if not game over and it's not day
         update_enemies()  # Update enemy animations and positions
         check_bullet_enemy_collisions()  # Check for collisions each frame
         cheat_mode_behavior()  # Handle cheat mode
@@ -3240,14 +3176,15 @@ def showScreen():
 
     # (SAMANIA) This line is to use the dynamic sky color.
     glClearColor(sky_r, sky_g, sky_b, 1.0)
-    # ===========================================================
+    # ==============================================================================
     
+
+
     # Clear color and depth buffers
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     glEnable(GL_DEPTH_TEST)
 
     setupCamera()  # Configure camera perspective
-
 
     # Draw a random points
     glPointSize(20)
@@ -3255,14 +3192,14 @@ def showScreen():
     glVertex3f(-GRID_LENGTH, GRID_LENGTH, 0)
     glEnd()
 
-
     # Draw the grid (game floor) - larger with green sand and green patches
     glBegin(GL_QUADS)
     square_len = 100
     grid_size = 60  # Increased to cover the full 3000x3000 grid
     x_val = -GRID_LENGTH
     y_val = GRID_LENGTH
-
+    
+   
     # (SAMANIA)): CODE FOR SEASONAL GRASS COLOR                               
  
     grass_palette = season_grass_colors.get(current_season)
@@ -3274,7 +3211,6 @@ def showScreen():
     for i in range(grid_size):          # rows
         for j in range(grid_size):      # cols
 
-
             # (SAMANIA) Create a pattern of green sand with green grass patches
             #  MODIFICATION FOR SEASONAL GRASS COLOR                         
             # seasonal palette instead of fixed colors.
@@ -3284,7 +3220,6 @@ def showScreen():
                 glColor3f(patch2_color[0], patch2_color[1], patch2_color[2])
             else:  # Base green sand color
                 glColor3f(base_color[0], base_color[1], base_color[2])
-
 
 
             # corners using incremental x_val, y_val
@@ -3300,9 +3235,7 @@ def showScreen():
         x_val = -GRID_LENGTH
         y_val -= square_len
 
-
     glEnd()
-
 
     wall_height = 100
 
@@ -3336,7 +3269,6 @@ def showScreen():
     glVertex3f(GRID_LENGTH, GRID_LENGTH, wall_height)
     glVertex3f(GRID_LENGTH, -GRID_LENGTH, wall_height)
 
-
     glEnd()
 
     # Update door system
@@ -3358,12 +3290,9 @@ def showScreen():
         draw_text(10, 740, f"Lives: {player_lives}")
         draw_text(10, 710, f"WASD to move, R to reset, F for fullscreen")
    
-
-
     update_merchants()
     draw_clouds()
     draw_shapes()
-
 
     # Swap buffers for smooth rendering (double buffering)
     glutSwapBuffers()
