@@ -3901,7 +3901,7 @@ def main():
     wind = glutCreateWindow(b"3D Shooter Game")  # Create the window
 
     glutDisplayFunc(showScreen)  # Register display function
-    glutReshapeFunc(reshape)  # Register reshape function for fullscreen support
+
     glutKeyboardFunc(keyboardListener)  # Register keyboard listener
     glutSpecialFunc(specialKeyListener)
     glutMouseFunc(mouseListener)
