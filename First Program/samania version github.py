@@ -412,32 +412,7 @@ def check_cave_collision(x, y):
         return True
 
     return False
-    if (x >= cave_x - cave_width/2 - wall_thickness/2 and x <= cave_x - cave_width/2 + wall_thickness/2 and
-        y >= cave_y - cave_depth/2 and y <= cave_y + cave_depth/2):
-        return True
-
-    # Right wall
-    if (x >= cave_x + cave_width/2 - wall_thickness/2 and x <= cave_x + cave_width/2 + wall_thickness/2 and
-        y >= cave_y - cave_depth/2 and y <= cave_y + cave_depth/2):
-        return True
-
-    # Front wall (with opening)
-    opening_width = 200
-    opening_left_x = cave_x - opening_width/2
-    opening_right_x = cave_x + opening_width/2
-    
-    front_wall_y_min = cave_y + cave_depth/2 - wall_thickness/2
-    front_wall_y_max = cave_y + cave_depth/2 + wall_thickness/2
-
-    # Check if player is in the y-range of the front wall
-    if (y >= front_wall_y_min and y <= front_wall_y_max):
-        # Check if player is in the solid parts of the front wall
-        if (x >= cave_x - cave_width/2 and x <= opening_left_x) or \
-           (x >= opening_right_x and x <= cave_x + cave_width/2):
-            return True
-
-    return False
-
+   
 def check_cave_opening_collision(x, y):
     """Check if position is near the cave opening."""
     cave_x = -2500
