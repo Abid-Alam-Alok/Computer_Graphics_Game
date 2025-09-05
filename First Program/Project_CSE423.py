@@ -3898,7 +3898,7 @@ def main():
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH)  # Double buffering, RGB color, depth test
     glutInitWindowSize(1000, 800)  # Window size
     glutInitWindowPosition(0, 0)  # Window position
-    wind = glutCreateWindow(b"3D Shooter Game")  # Create the window
+    wind = glutCreateWindow(b"Zombie Attack")  # Create the window
 
     glutDisplayFunc(showScreen)  # Register display function
 
