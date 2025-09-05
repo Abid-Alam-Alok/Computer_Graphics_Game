@@ -56,6 +56,22 @@ angle_hacks = math.radians(3)
 angle_inc = math.radians(5)
 move_speed = 10  # Player movement speed
 
+# (samania new): CODE FOR HEALTH, STAMINA, AND WEATHER                          
+# Health and Stamina System
+MAX_PLAYER_LIVES = 5
+player_stamina = 100.0
+MAX_STAMINA = 100.0
+is_sprinting = False
+STAMINA_DRAIN_RATE = 0.3
+STAMINA_REGEN_RATE = 0.15
+STAMINA_SPRINT_THRESHOLD = 15
+STAMINA_COST_JUMP = 20.0
+
+# Weather System
+weather_particles = []
+MAX_PARTICLES = 500
+WEATHER_VOLUME_SIZE = 1500
+# ======================
 # Cloud variables
 cloud_positions = []
 cloud_animation_timer = 0
