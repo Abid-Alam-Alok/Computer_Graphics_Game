@@ -119,7 +119,66 @@ merchant3_move_timer = 120
 merchant3_direction = 1
 cow_tail_angle = 0     # For cow tail swaying
 
+# (SAMANIA): CODE FOR DAY/NIGHT CYCLE AND SEASONS                  
 
+# Day-Night Cycle
+time_of_day = 1.0  # 1.0 is midday, 0.0 is midnight
+day_night_target = 1.0 # The time of day we are transitioning towards
+day_night_transition_speed = 0.05 # How fast the transition happens
+is_day = True # Tracks if it's currently day
+
+# Seasonal Change
+day_count = 0 # Counter for day-night alternations
+days_per_season = 1 # How many "days" until the season changes
+# Seasons: 0=Spring, 1=Summer, 2=Autumn, 3=Winter
+current_season = 0 
+season_names = ["Spring", "Summer", "Autumn", "Winter"]
+
+# Seasonal Color Palettes
+# Grass colors [base_sand, patch1, patch2]
+season_grass_colors = {
+    0: [(0.8, 0.7, 0.4), (0.2, 0.8, 0.2), (0.3, 0.9, 0.3)], # Spring: Sandy with vibrant green
+    1: [(0.8, 0.7, 0.4), (0.1, 0.6, 0.1), (0.2, 0.7, 0.2)], # Summer: Sandy with deep green
+    2: [(0.8, 0.7, 0.4), (0.8, 0.5, 0.2), (0.9, 0.6, 0.1)], # Autumn: Sandy with orange/brown patches
+    3: [(0.9, 0.9, 0.9), (0.8, 0.8, 0.8), (1.0, 1.0, 1.0)], # Winter: Light gray/white snow
+}
+# Tree leaf colors that match the 18 variations in your tree drawing code
+season_leaf_colors = {
+    0: [(0.0, 0.8, 0.2), (0.1, 0.7, 0.1), (0.0, 0.6, 0.3), (0.2, 0.9, 0.2), (0.0, 0.5, 0.2), (0.3, 0.8, 0.3), (0.0, 0.9, 0.4), (0.1, 0.9, 0.3), (0.0, 0.7, 0.4), (0.2, 0.6, 0.1), (0.0, 0.8, 0.5), (0.3, 0.9, 0.4), (0.1, 0.5, 0.3), (0.0, 0.9, 0.1), (0.2, 0.7, 0.2), (0.1, 0.6, 0.4), (0.0, 0.4, 0.2), (0.4, 0.8, 0.2)], # Spring
+    1: [(0.0, 0.6, 0.1), (0.1, 0.5, 0.0), (0.0, 0.5, 0.1), (0.1, 0.6, 0.1), (0.0, 0.4, 0.0), (0.2, 0.6, 0.2), (0.0, 0.7, 0.2), (0.1, 0.7, 0.1), (0.0, 0.5, 0.2), (0.1, 0.4, 0.0), (0.0, 0.6, 0.3), (0.2, 0.7, 0.3), (0.1, 0.4, 0.2), (0.0, 0.7, 0.0), (0.1, 0.5, 0.1), (0.1, 0.5, 0.2), (0.0, 0.3, 0.1), (0.3, 0.6, 0.1)], # Summer
+    2: [(1.0, 0.5, 0.0), (0.8, 0.2, 0.1), (0.9, 0.6, 0.1), (0.7, 0.3, 0.0), (1.0, 0.4, 0.0), (0.8, 0.4, 0.1), (0.9, 0.3, 0.0), (1.0, 0.6, 0.2), (0.7, 0.2, 0.0), (0.9, 0.5, 0.2), (1.0, 0.3, 0.1), (0.8, 0.5, 0.0), (0.9, 0.4, 0.1), (1.0, 0.2, 0.0), (0.7, 0.4, 0.2), (0.8, 0.3, 0.1), (0.9, 0.2, 0.0), (1.0, 0.7, 0.1)], # Autumn
+    3: [], # Winter: No leaves
+}
+# Sky colors [day_color, night_color]
+sky_colors = [(0.53, 0.81, 0.92), (0.0, 0.0, 0.1)] # Day color matches your original glClearColor
+
+def update_day_night_cycle():
+    """Gradually transitions the time of day and handles season changes."""
+    global time_of_day, day_night_target, day_count, current_season, is_day
+
+    # Gradually move current time towards the target time
+    if time_of_day < day_night_target:
+        time_of_day = min(day_night_target, time_of_day + day_night_transition_speed)
+    elif time_of_day > day_night_target:
+        time_of_day = max(day_night_target, time_of_day - day_night_transition_speed)
+
+    # Check for a completed transition to day
+    if time_of_day == 1.0 and not is_day:
+        is_day = True
+        day_count += 1
+        print(f"A new day has begun. Day {day_count} of {days_per_season} in this season.")
+        # Check if it's time to change the season
+        if day_count >= days_per_season:
+            day_count = 0
+            current_season = (current_season + 1) % 4 # Cycle through 4 seasons
+            print(f"The season has changed to {season_names[current_season]}!")
+    
+    # Check for a completed transition to night
+    elif time_of_day == 0.0 and is_day:
+        is_day = False
+        print("Night has fallen.")
+
+# ======================================        
 
 
 def check_game_over():
@@ -2203,6 +2262,11 @@ def draw_shapes():
         (900, -600, 0),
     ]
 
+    # (SAMANIA): CODE FOR SEASONAL TREES                                     
+    #  leaf color palette for the current season
+    leaf_color_palette = season_leaf_colors.get(current_season, [])
+
+
     for tree_x, tree_y, tree_z in tree_positions:
         # Enhanced tree with many branches and varied leaf clusters
         glPushMatrix()
@@ -2219,25 +2283,31 @@ def draw_shapes():
         gluCylinder(quadric, trunk_radius, trunk_radius * 0.6, trunk_length, 24, 24)
         gluDeleteQuadric(quadric)
 
-        # Draw fewer layers of branches for simpler trees
-        branch_levels = 3  # Reduced number of vertical levels
-        branch_count = 8  # Reduced base number of branches
-        for level in range(branch_levels):
-            level_height = trunk_length * (0.5 + level * 0.2)  # Different heights for each level
-            branches_per_level = branch_count - level * 2  # Fewer branches at higher levels
-            level_branch_length = trunk_length * (0.6 - level * 0.05)  # Longer branches for more spread
-            
-            for i in range(branches_per_level):
-                angle = 360.0 * i / branches_per_level
-                # Add more randomness to branch angles for natural look
-                angle_variation = (i % 5) * 20 - 40  # Varies between -40 and 40 degrees
-                final_angle = angle + angle_variation
+
+        # (SAMANIA): CODE FOR SEASONAL TREES (LEAF RENDERING LOGIC)      
+       
+        # Only draw leaves if it is not winter
+        if len(leaf_color_palette) > 0:
+        # ==============================================================================
+            # Draw fewer layers of branches for simpler trees
+            branch_levels = 3  # Reduced number of vertical levels
+            branch_count = 8  # Reduced base number of branches
+            for level in range(branch_levels):
+                level_height = trunk_length * (0.5 + level * 0.2)  # Different heights for each level
+                branches_per_level = branch_count - level * 2  # Fewer branches at higher levels
+                level_branch_length = trunk_length * (0.6 - level * 0.05)  # Longer branches for more spread
                 
-                glPushMatrix()
-                # Move to branch attachment point on trunk
-                glTranslatef(0, 0, level_height)
-                glRotatef(final_angle, 0, 0, 1)  # Spread branches around Z
-                glRotatef(20 + level * 8, 1, 0, 0)  # Tilt upward, more for higher levels
+                for i in range(branches_per_level):
+                    angle = 360.0 * i / branches_per_level
+                    # Add more randomness to branch angles for natural look
+                    angle_variation = (i % 5) * 20 - 40  # Varies between -40 and 40 degrees
+                    final_angle = angle + angle_variation
+                    
+                    glPushMatrix()
+                    # Move to branch attachment point on trunk
+                    glTranslatef(0, 0, level_height)
+                    glRotatef(final_angle, 0, 0, 1)  # Spread branches around Z
+                    glRotatef(20 + level * 8, 1, 0, 0)  # Tilt upward, more for higher levels
                 
                 # Draw branch (solid cylinder)
                 glColor3f(0.4, 0.3, 0.1)
@@ -2269,28 +2339,14 @@ def draw_shapes():
                     # Vary leaf size and color based on branch level and position
                     size_variation = 0.6 + (cluster % 3) * 0.3  # Size varies from 0.6 to 1.2
                     current_leaf_radius = leaf_radius * size_variation * (1.2 - level * 0.1)
+                       
+                       
+                    # (SAMANIA): MODIFICATION FOR SEASONAL LEAF COLOR                  
+                  
+                    # dynamic seasonal palette.
+                    green_variations = leaf_color_palette                    
+
                     
-                    # Different shades of green with more variety
-                    green_variations = [
-                        (0.0, 0.8, 0.2),   # Bright green
-                        (0.1, 0.7, 0.1),   # Medium green  
-                        (0.0, 0.6, 0.3),   # Forest green
-                        (0.2, 0.9, 0.2),   # Light green
-                        (0.0, 0.5, 0.2),   # Dark green
-                        (0.3, 0.8, 0.3),   # Light forest green
-                        (0.0, 0.9, 0.4),   # Spring green
-                        (0.1, 0.9, 0.3),   # Lime green
-                        (0.0, 0.7, 0.4),   # Sea green
-                        (0.2, 0.6, 0.1),   # Olive green
-                        (0.0, 0.8, 0.5),   # Emerald green
-                        (0.3, 0.9, 0.4),   # Mint green
-                        (0.1, 0.5, 0.3),   # Pine green
-                        (0.0, 0.9, 0.1),   # Neon green
-                        (0.2, 0.7, 0.2),   # Grass green
-                        (0.1, 0.6, 0.4),   # Sage green
-                        (0.0, 0.4, 0.2),   # Deep forest green
-                        (0.4, 0.8, 0.2)    # Yellow-green
-                    ]
                     green_color = green_variations[(i + cluster) % len(green_variations)]
                     glColor3f(green_color[0], green_color[1], green_color[2])
                     
@@ -2635,6 +2691,16 @@ def keyboardListener(key, x, y):
 
     if key == b'd':  # Rotate right
         player_cam_angle -= 5
+
+    # (SAMANIA): CODE FOR DAY/NIGHT KEY LISTENERS                            
+    if key == b'L' or key == b'l': # Press L for Light (Day)
+        day_night_target = 1.0
+        print("Transitioning to Day...")
+
+    if key == b'N' or key == b'n': # Press N for Night
+        day_night_target = 0.0
+        print("Transitioning to Night...")
+
 
     # Reset game with R key
     if key == b'r':
@@ -3118,6 +3184,10 @@ def idle():
         cloud_animation_timer = 0
     
     glutPostRedisplay()
+
+    # (SAMANIA): CODE - CALL CYCLE UPDATE    
+    update_day_night_cycle() # Update the day/night transition
+
     update_bullet()
     update_player_jump()  # Update jumping physics
     if not game_over:  # Only update enemies if not game over
@@ -3157,8 +3227,21 @@ def showScreen():
     - Clears the screen and sets up the camera.
     - Draws everything of the screen
     """
-    # Set background to baby blue
-    glClearColor(0.53, 0.81, 0.92, 1.0)
+
+    #  (SAMANIA): CODE FOR DYNAMIC SKY COLOR                                 
+
+    # Interpolate between day and night color based on time_of_day
+    day_color = sky_colors[0]
+    night_color = sky_colors[1]
+    
+    sky_r = night_color[0] + (day_color[0] - night_color[0]) * time_of_day
+    sky_g = night_color[1] + (day_color[1] - night_color[1]) * time_of_day
+    sky_b = night_color[2] + (day_color[2] - night_color[2]) * time_of_day
+
+    # (SAMANIA) This line is to use the dynamic sky color.
+    glClearColor(sky_r, sky_g, sky_b, 1.0)
+    # ===========================================================
+    
     # Clear color and depth buffers
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     glEnable(GL_DEPTH_TEST)
@@ -3180,15 +3263,29 @@ def showScreen():
     x_val = -GRID_LENGTH
     y_val = GRID_LENGTH
 
+    # (SAMANIA)): CODE FOR SEASONAL GRASS COLOR                               
+ 
+    grass_palette = season_grass_colors.get(current_season)
+    base_color = grass_palette[0]
+    patch1_color = grass_palette[1]
+    patch2_color = grass_palette[2]
+
+
     for i in range(grid_size):          # rows
         for j in range(grid_size):      # cols
-            # Create a pattern of green sand with green grass patches
+
+
+            # (SAMANIA) Create a pattern of green sand with green grass patches
+            #  MODIFICATION FOR SEASONAL GRASS COLOR                         
+            # seasonal palette instead of fixed colors.
             if (i + j) % 7 == 0 or (i * 3 + j * 2) % 11 == 0:  # Green grass patches
-                glColor3f(0.2, 0.6, 0.2)  # Dark green grass
+                glColor3f(patch1_color[0], patch1_color[1], patch1_color[2])
             elif (i + j) % 3 == 0:  # Some lighter green patches
-                glColor3f(0.3, 0.7, 0.3)  # Medium green
+                glColor3f(patch2_color[0], patch2_color[1], patch2_color[2])
             else:  # Base green sand color
-                glColor3f(0.8, 0.7, 0.4)  # Sandy beige/light brown
+                glColor3f(base_color[0], base_color[1], base_color[2])
+
+
 
             # corners using incremental x_val, y_val
             glVertex3f(x_val, y_val, 0)
@@ -3292,4 +3389,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
